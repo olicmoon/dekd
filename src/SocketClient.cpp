@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <alloca.h>
+#include <unistd.h>
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
