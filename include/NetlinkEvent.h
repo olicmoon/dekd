@@ -16,7 +16,7 @@
 #ifndef _NETLINKEVENT_H
 #define _NETLINKEVENT_H
 
-#include <sysutils/NetlinkListener.h>
+#include "NetlinkListener.h"
 
 #define NL_PARAMS_MAX 32
 
@@ -52,13 +52,7 @@ public:
     void dump();
 
  protected:
-    bool parseBinaryNetlinkMessage(char *buffer, int size);
     bool parseAsciiNetlinkMessage(char *buffer, int size);
-    bool parseIfInfoMessage(const struct nlmsghdr *nh);
-    bool parseIfAddrMessage(const struct nlmsghdr *nh);
-    bool parseUlogPacketMessage(const struct nlmsghdr *nh);
-    bool parseRtMessage(const struct nlmsghdr *nh);
-    bool parseNdUserOptMessage(const struct nlmsghdr *nh);
 };
 
 #endif

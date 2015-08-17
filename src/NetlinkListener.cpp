@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 #include <errno.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <linux/netlink.h>
 #include <string.h>
 
-#define LOG_TAG "NetlinkListener"
-#include <cutils/log.h>
-#include <cutils/uevent.h>
-
-#include <sysutils/NetlinkEvent.h>
+#include <SocketUtil.h>
+#include <NetlinkEvent.h>
 
 #if 1
 /* temporary version until we can get Motorola to update their
@@ -41,6 +40,65 @@ NetlinkListener::NetlinkListener(int socket, int format) :
                             SocketListener(socket, false), mFormat(format) {
 }
 
+/**
+ * Like the above, but passes a uid_t in by reference. In the event that this
+ * fails due to a bad uid check, the uid_t will be set to the uid of the
+ * socket's peer.
+ *
+ * If this method rejects a netlink message from outside the kernel, it
+ * returns -1, sets errno to EIO, and sets "user" to the UID associated with the
+ * message. If the peer UID cannot be determined, "user" is set to -1."
+ */
+ssize_t uevent_kernel_multicast_uid_recv(int socket, void *buffer,
+                                         size_t length, uid_t *user)
+{
+    struct iovec iov = { buffer, length };
+    struct sockaddr_nl addr;
+    char control[CMSG_SPACE(sizeof(struct ucred))];
+    struct msghdr hdr = {
+        &addr,
+        sizeof(addr),
+        &iov,
+        1,
+        control,
+        sizeof(control),
+        0,
+    };
+
+    *user = -1;
+    ssize_t n = recvmsg(socket, &hdr, 0);
+    if (n <= 0) {
+        return n;
+    }
+
+    struct cmsghdr *cmsg = CMSG_FIRSTHDR(&hdr);
+    struct ucred *cred = (struct ucred *)CMSG_DATA(cmsg);
+    *user = cred->uid;
+
+    if (cmsg == NULL || cmsg->cmsg_type != SCM_CREDENTIALS) {
+        /* ignoring netlink message with no sender credentials */
+        goto out;
+    }
+
+    if (cred->uid != 0) {
+        /* ignoring netlink message from non-root user */
+        goto out;
+    }
+
+    if (addr.nl_groups == 0 || addr.nl_pid != 0) {
+        /* ignoring non-kernel or unicast netlink message */
+        goto out;
+    }
+
+    return n;
+
+out:
+    /* clear residual potentially malicious data */
+    bzero(buffer, length);
+    errno = EIO;
+    return -1;
+}
+
 bool NetlinkListener::onDataAvailable(SocketClient *cli)
 {
     int socket = cli->getSocket();
@@ -50,9 +108,7 @@ bool NetlinkListener::onDataAvailable(SocketClient *cli)
     count = TEMP_FAILURE_RETRY(uevent_kernel_multicast_uid_recv(
                                        socket, mBuffer, sizeof(mBuffer), &uid));
     if (count < 0) {
-        if (uid > 0)
-            LOG_EVENT_INT(65537, uid);
-        SLOGE("recvmsg failed (%s)", strerror(errno));
+        printf("recvmsg failed (%s)", strerror(errno));
         return false;
     }
 
@@ -62,7 +118,7 @@ bool NetlinkListener::onDataAvailable(SocketClient *cli)
     } else if (mFormat != NETLINK_FORMAT_BINARY) {
         // Don't complain if parseBinaryNetlinkMessage returns false. That can
         // just mean that the buffer contained no messages we're interested in.
-        SLOGE("Error decoding NetlinkEvent");
+    	printf("Error decoding NetlinkEvent\n");
     }
 
     delete evt;

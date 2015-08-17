@@ -18,7 +18,7 @@
 
 #include <pthread.h>
 
-#include <sysutils/SocketClient.h>
+#include "SocketClient.h"
 #include "SocketClientCommand.h"
 
 class SocketListener {
