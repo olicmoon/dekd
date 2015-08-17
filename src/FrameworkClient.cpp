@@ -1,12 +1,13 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
 #include <alloca.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <pthread.h>
 
-#define LOG_TAG "FrameworkClient"
-#include <cutils/log.h>
-
-#include <sysutils/FrameworkClient.h>
+#include <SocketUtil.h>
+#include <FrameworkClient.h>
 
 FrameworkClient::FrameworkClient(int socket) {
     mSocket = socket;
@@ -23,7 +24,7 @@ int FrameworkClient::sendMsg(const char *msg) {
     pthread_mutex_lock(&mWriteMutex);
     ret = TEMP_FAILURE_RETRY(write(mSocket, msg, strlen(msg) +1));
     if (ret < 0) {
-        SLOGW("Unable to send msg '%s' (%s)", msg, strerror(errno));
+        printf("Unable to send msg '%s' (%s)", msg, strerror(errno));
     }
     pthread_mutex_unlock(&mWriteMutex);
     return 0;

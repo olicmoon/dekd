@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
-#define LOG_TAG "NetlinkEvent"
-#include <cutils/log.h>
-
-#include <sysutils/NetlinkEvent.h>
+#include <NetlinkEvent.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -51,7 +49,7 @@ const int NetlinkEvent::NlActionRdnss = 8;
 const int NetlinkEvent::NlActionRouteUpdated = 9;
 const int NetlinkEvent::NlActionRouteRemoved = 10;
 
-NetlinkEvent::NetlinkEvent() {
+NetlinkEvent::NetlinkEvent() : mSeq(0){
     mAction = NlActionUnknown;
     memset(mParams, 0, sizeof(mParams));
     mPath = NULL;
@@ -77,7 +75,7 @@ void NetlinkEvent::dump() {
     for (i = 0; i < NL_PARAMS_MAX; i++) {
         if (!mParams[i])
             break;
-        SLOGD("NL param '%s'\n", mParams[i]);
+        printf("NL param '%s'\n", mParams[i]);
     }
 }
 
@@ -108,7 +106,7 @@ static const char *rtMessageName(int type) {
  */
 static bool checkRtNetlinkLength(const struct nlmsghdr *nh, size_t size) {
     if (nh->nlmsg_len < NLMSG_LENGTH(size)) {
-        SLOGE("Got a short %s message\n", rtMessageName(nh->nlmsg_type));
+    	printf("Got a short %s message\n", rtMessageName(nh->nlmsg_type));
         return false;
     }
     return true;
@@ -121,7 +119,7 @@ static bool maybeLogDuplicateAttribute(bool isDup,
                                        const char *attributeName,
                                        const char *messageName) {
     if (isDup) {
-        SLOGE("Multiple %s attributes in %s, ignoring\n", attributeName, messageName);
+    	printf("Multiple %s attributes in %s, ignoring\n", attributeName, messageName);
         return true;
     }
     return false;
@@ -170,7 +168,7 @@ bool NetlinkEvent::parseIfAddrMessage(const struct nlmsghdr *nh) {
     // Sanity check.
     int type = nh->nlmsg_type;
     if (type != RTM_NEWADDR && type != RTM_DELADDR) {
-        SLOGE("parseIfAddrMessage on incorrect message type 0x%x\n", type);
+    	printf("parseIfAddrMessage on incorrect message type 0x%x\n", type);
         return false;
     }
 
@@ -190,7 +188,7 @@ bool NetlinkEvent::parseIfAddrMessage(const struct nlmsghdr *nh) {
             if (ifaddr->ifa_family == AF_INET) {
                 struct in_addr *addr4 = (struct in_addr *) RTA_DATA(rta);
                 if (RTA_PAYLOAD(rta) < sizeof(*addr4)) {
-                    SLOGE("Short IPv4 address (%zu bytes) in %s",
+                	printf("Short IPv4 address (%zu bytes) in %s",
                           RTA_PAYLOAD(rta), msgtype);
                     continue;
                 }
@@ -198,19 +196,19 @@ bool NetlinkEvent::parseIfAddrMessage(const struct nlmsghdr *nh) {
             } else if (ifaddr->ifa_family == AF_INET6) {
                 struct in6_addr *addr6 = (struct in6_addr *) RTA_DATA(rta);
                 if (RTA_PAYLOAD(rta) < sizeof(*addr6)) {
-                    SLOGE("Short IPv6 address (%zu bytes) in %s",
+                	printf("Short IPv6 address (%zu bytes) in %s",
                           RTA_PAYLOAD(rta), msgtype);
                     continue;
                 }
                 inet_ntop(AF_INET6, addr6, addrstr, sizeof(addrstr));
             } else {
-                SLOGE("Unknown address family %d\n", ifaddr->ifa_family);
+            	printf("Unknown address family %d\n", ifaddr->ifa_family);
                 continue;
             }
 
             // Find the interface name.
             if (!if_indextoname(ifaddr->ifa_index, ifname)) {
-                SLOGE("Unknown ifindex %d in %s", ifaddr->ifa_index, msgtype);
+            	printf("Unknown ifindex %d in %s", ifaddr->ifa_index, msgtype);
                 return false;
             }
 
@@ -220,7 +218,7 @@ bool NetlinkEvent::parseIfAddrMessage(const struct nlmsghdr *nh) {
                 continue;
 
             if (RTA_PAYLOAD(rta) < sizeof(*cacheinfo)) {
-                SLOGE("Short IFA_CACHEINFO (%zu vs. %zu bytes) in %s",
+            	printf("Short IFA_CACHEINFO (%zu vs. %zu bytes) in %s",
                       RTA_PAYLOAD(rta), sizeof(cacheinfo), msgtype);
                 continue;
             }
@@ -230,7 +228,7 @@ bool NetlinkEvent::parseIfAddrMessage(const struct nlmsghdr *nh) {
     }
 
     if (addrstr[0] == '\0') {
-        SLOGE("No IFA_ADDRESS in %s\n", msgtype);
+    	printf("No IFA_ADDRESS in %s\n", msgtype);
         return false;
     }
 
@@ -280,7 +278,7 @@ bool NetlinkEvent::parseRtMessage(const struct nlmsghdr *nh) {
 
     // Sanity check.
     if (type != RTM_NEWROUTE && type != RTM_DELROUTE) {
-        SLOGE("%s: incorrect message type %d (%s)\n", __func__, type, msgname);
+    	printf("%s: incorrect message type %d (%s)\n", __func__, type, msgname);
         return false;
     }
 
@@ -374,7 +372,7 @@ bool NetlinkEvent::parseNdUserOptMessage(const struct nlmsghdr *nh) {
     // Check the length is valid.
     int len = NLMSG_PAYLOAD(nh, sizeof(*msg));
     if (msg->nduseropt_opts_len > len) {
-        SLOGE("RTM_NEWNDUSEROPT invalid length %d > %d\n",
+    	printf("RTM_NEWNDUSEROPT invalid length %d > %d\n",
               msg->nduseropt_opts_len, len);
         return false;
     }
@@ -382,14 +380,14 @@ bool NetlinkEvent::parseNdUserOptMessage(const struct nlmsghdr *nh) {
 
     // Check address family and packet type.
     if (msg->nduseropt_family != AF_INET6) {
-        SLOGE("RTM_NEWNDUSEROPT message for unknown family %d\n",
+    	printf("RTM_NEWNDUSEROPT message for unknown family %d\n",
               msg->nduseropt_family);
         return false;
     }
 
     if (msg->nduseropt_icmp_type != ND_ROUTER_ADVERT ||
         msg->nduseropt_icmp_code != 0) {
-        SLOGE("RTM_NEWNDUSEROPT message for unknown ICMPv6 type/code %d/%d\n",
+    	printf("RTM_NEWNDUSEROPT message for unknown ICMPv6 type/code %d/%d\n",
               msg->nduseropt_icmp_type, msg->nduseropt_icmp_code);
         return false;
     }
@@ -397,7 +395,7 @@ bool NetlinkEvent::parseNdUserOptMessage(const struct nlmsghdr *nh) {
     // Find the interface name.
     char ifname[IFNAMSIZ];
     if (!if_indextoname(msg->nduseropt_ifindex, ifname)) {
-        SLOGE("RTM_NEWNDUSEROPT on unknown ifindex %d\n",
+    	printf("RTM_NEWNDUSEROPT on unknown ifindex %d\n",
               msg->nduseropt_ifindex);
         return false;
     }
@@ -409,7 +407,7 @@ bool NetlinkEvent::parseNdUserOptMessage(const struct nlmsghdr *nh) {
     // The length is in multiples of 8 octets.
     uint16_t optlen = opthdr->nd_opt_len;
     if (optlen * 8 > len) {
-        SLOGE("Invalid option length %d > %d for ND option %d\n",
+    	printf("Invalid option length %d > %d for ND option %d\n",
               optlen * 8, len, opthdr->nd_opt_type);
         return false;
     }
@@ -420,7 +418,7 @@ bool NetlinkEvent::parseNdUserOptMessage(const struct nlmsghdr *nh) {
         // So for a valid option with one or more addresses, optlen must be
         // odd and greater than 1.
         if ((optlen < 3) || !(optlen & 0x1)) {
-            SLOGE("Invalid optlen %d for RDNSS option\n", optlen);
+        	printf("Invalid optlen %d for RDNSS option\n", optlen);
             return false;
         }
         int numaddrs = (optlen - 1) / 2;
@@ -437,7 +435,7 @@ bool NetlinkEvent::parseNdUserOptMessage(const struct nlmsghdr *nh) {
         int bufsize = kTagLength + numaddrs * (INET6_ADDRSTRLEN + 1);
         char *buf = (char *) malloc(bufsize);
         if (!buf) {
-            SLOGE("RDNSS option: out of memory\n");
+        	printf("RDNSS option: out of memory\n");
             return false;
         }
         strcpy(buf, kServerTag);
@@ -459,7 +457,7 @@ bool NetlinkEvent::parseNdUserOptMessage(const struct nlmsghdr *nh) {
         asprintf(&mParams[1], "LIFETIME=%u", lifetime);
         mParams[2] = buf;
     } else {
-        SLOGD("Unknown ND option type %d\n", opthdr->nd_opt_type);
+    	printf("Unknown ND option type %d\n", opthdr->nd_opt_type);
         return false;
     }
 
@@ -485,7 +483,7 @@ bool NetlinkEvent::parseBinaryNetlinkMessage(char *buffer, int size) {
          nh = NLMSG_NEXT(nh, size)) {
 
         if (!rtMessageName(nh->nlmsg_type)) {
-            SLOGD("Unexpected netlink message type %d\n", nh->nlmsg_type);
+        	printf("Unexpected netlink message type %d\n", nh->nlmsg_type);
             continue;
         }
 
@@ -603,6 +601,6 @@ const char *NetlinkEvent::findParam(const char *paramName) {
             return ++ptr;
     }
 
-    SLOGE("NetlinkEvent::FindParam(): Parameter '%s' not found", paramName);
+    printf("NetlinkEvent::FindParam(): Parameter '%s' not found", paramName);
     return NULL;
 }

@@ -4,7 +4,6 @@
 #include "List.h"
 
 #include <pthread.h>
-#include <cutils/atomic.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 
@@ -40,7 +39,9 @@ public:
     uid_t getUid() const { return mUid; }
     gid_t getGid() const { return mGid; }
     void setCmdNum(int cmdNum) {
-        android_atomic_release_store(cmdNum, &mCmdNum);
+        //android_atomic_release_store(cmdNum, &mCmdNum);
+    	// TODO atomic set
+        mCmdNum = cmdNum;
     }
     int getCmdNum() { return mCmdNum; }
 

@@ -1,4 +1,5 @@
 #include <alloca.h>
+#include <unistd.h>
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
@@ -7,10 +8,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#define LOG_TAG "SocketClient"
-#include <cutils/log.h>
-
-#include <sysutils/SocketClient.h>
+#include <SocketClient.h>
+#include <SocketUtil.h>
 
 SocketClient::SocketClient(int socket, bool owned) {
     init(socket, owned, false);
@@ -118,7 +117,7 @@ char *SocketClient::quoteArg(const char *arg) {
     char *oldresult;
 
     if(result == NULL) {
-        SLOGW("malloc error (%s)", strerror(errno));
+    	printf("malloc error (%s)", strerror(errno));
         return NULL;
     }
 
@@ -143,7 +142,7 @@ char *SocketClient::quoteArg(const char *arg) {
 int SocketClient::sendMsg(const char *msg) {
     // Send the message including null character
     if (sendData(msg, strlen(msg) + 1) != 0) {
-        SLOGW("Unable to send msg '%s'", msg);
+    	printf("Unable to send msg '%s'", msg);
         return -1;
     }
     return 0;
@@ -209,10 +208,10 @@ int SocketClient::sendDataLockedv(struct iovec *iov, int iovcnt) {
 
         if (rc == 0) {
             e = EIO;
-            SLOGW("0 length write :(");
+            printf("0 length write :(");
         } else {
             e = errno;
-            SLOGW("write error (%s)", strerror(e));
+            printf("write error (%s)", strerror(e));
         }
         ret = -1;
         break;
@@ -237,7 +236,7 @@ bool SocketClient::decRef() {
     if (mRefCount == 0) {
         deleteSelf = true;
     } else if (mRefCount < 0) {
-        SLOGE("SocketClient refcount went negative!");
+    	printf("SocketClient refcount went negative!");
     }
     pthread_mutex_unlock(&mRefCountMutex);
     if (deleteSelf) {

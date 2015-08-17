@@ -16,7 +16,7 @@
 #ifndef _NETLINKEVENT_H
 #define _NETLINKEVENT_H
 
-#include <sysutils/NetlinkListener.h>
+#include "NetlinkListener.h"
 
 #define NL_PARAMS_MAX 32
 

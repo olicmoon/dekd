@@ -16,7 +16,7 @@
 #ifndef _SOCKETCLIENTCOMMAND_H
 #define _SOCKETCLIENTCOMMAND_H
 
-#include <sysutils/SocketClient.h>
+#include "SocketClient.h"
 
 class SocketClientCommand {
 public:

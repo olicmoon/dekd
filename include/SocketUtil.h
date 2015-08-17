@@ -1,0 +1,27 @@
+/*
+ * SocketUtil.h
+ *
+ *  Created on: Aug 16, 2015
+ *      Author: olic
+ */
+
+#ifndef SOCKET_UTIL_H_
+#define SOCKET_UTIL_H_
+
+#ifndef TEMP_FAILURE_RETRY
+
+#define TEMP_FAILURE_RETRY(exp) ({         \
+    typeof (exp) _rc;                      \
+    do {                                   \
+        _rc = (exp);                       \
+    } while (_rc == -1 && errno == EINTR); \
+    _rc; })
+
+#endif
+
+#define SOCKET_DIR		"/dev/socket"
+
+int create_socket(const char *name, int type, mode_t perm,
+		uid_t uid, gid_t gid);
+
+#endif /* SOCKET_UTIL_H_ */

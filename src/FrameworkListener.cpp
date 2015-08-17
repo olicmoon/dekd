@@ -13,17 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 
-#define LOG_TAG "FrameworkListener"
-
-#include <cutils/log.h>
-
-#include <sysutils/FrameworkListener.h>
-#include <sysutils/FrameworkCommand.h>
-#include <sysutils/SocketClient.h>
+#include <FrameworkListener.h>
+#include <FrameworkCommand.h>
+#include <SocketClient.h>
+#include <SocketUtil.h>
 
 static const int CMD_BUF_SIZE = 1024;
 
@@ -57,12 +55,12 @@ bool FrameworkListener::onDataAvailable(SocketClient *c) {
 
     len = TEMP_FAILURE_RETRY(read(c->getSocket(), buffer, sizeof(buffer)));
     if (len < 0) {
-        SLOGE("read() failed (%s)", strerror(errno));
+        printf("read() failed (%s)", strerror(errno));
         return false;
     } else if (!len)
         return false;
    if(buffer[len-1] != '\0')
-        SLOGW("String is not zero-terminated");
+	   printf("String is not zero-terminated");
 
     int offset = 0;
     int i;
@@ -177,7 +175,7 @@ void FrameworkListener::dispatchCommand(SocketClient *cli, char *data) {
 
     if (errorRate && (++mCommandCount % errorRate == 0)) {
         /* ignore this command - let the timeout handler handle it */
-        SLOGE("Faking a timeout");
+    	printf("Faking a timeout");
         goto out;
     }
 
@@ -186,7 +184,7 @@ void FrameworkListener::dispatchCommand(SocketClient *cli, char *data) {
 
         if (!strcmp(argv[0], c->getCommand())) {
             if (c->runCommand(cli, argc, argv)) {
-                SLOGW("Handler '%s' error (%s)", c->getCommand(), strerror(errno));
+            	printf("Handler '%s' error (%s)", c->getCommand(), strerror(errno));
             }
             goto out;
         }
@@ -209,7 +207,6 @@ overflow:
     memset(tmp, 0, sizeof(tmp));
     memset(data, 0, strlen(data));
     // CC 1.0 <<
-    LOG_EVENT_INT(78001, cli->getUid());
     cli->sendMsg(500, "Command too long", false);
     goto out;
 }
