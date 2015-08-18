@@ -25,8 +25,6 @@
 #include <sys/select.h>
 #include <sys/types.h>
 
-#define ANDROID_RESERVED_SOCKET_PREFIX "/dev/socket/"
-
 /**
  * connect to peer named "name" on fd
  * returns same fd or -1 on error.
@@ -34,7 +32,7 @@
  * 
  * Used by AndroidSocketImpl
  */
-int socket_local_client_connect(int fd, const char *name)
+int socket_local_client_connect(int fd, const char *sock_path, const char *name)
 {
     struct sockaddr_un addr;
     socklen_t alen;
@@ -43,14 +41,15 @@ int socket_local_client_connect(int fd, const char *name)
 
 	memset (&addr, 0, sizeof(addr));
 
-	namelen = strlen(name) + strlen(ANDROID_RESERVED_SOCKET_PREFIX);
+	namelen = strlen(name) + strlen(sock_path);
 	/* unix_path_max appears to be missing on linux */
 	if (namelen > sizeof(addr) 
 			- offsetof(struct sockaddr_un, sun_path) - 1) {
 		return -1;
 	}
 
-	strcpy(addr.sun_path, ANDROID_RESERVED_SOCKET_PREFIX);
+	strcpy(addr.sun_path, sock_path);
+	strcat(addr.sun_path, "/");
 	strcat(addr.sun_path, name);
 
 	addr.sun_family = AF_LOCAL;
@@ -73,14 +72,14 @@ error:
  * connect to peer named "name"
  * returns fd or -1 on error
  */
-int socket_local_client(const char *name, int type)
+int socket_local_client(const char *sock_path, const char *name, int type)
 {
     int s;
 
     s = socket(AF_LOCAL, type, 0);
     if(s < 0) return -1;
 
-    if ( 0 > socket_local_client_connect(s, name)) {
+    if ( 0 > socket_local_client_connect(s, sock_path, name)) {
         close(s);
         return -1;
     }

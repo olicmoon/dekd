@@ -67,8 +67,8 @@ SocketListener::~SocketListener() {
     delete mClients;
 }
 
-int SocketListener::startListener() {
-    return startListener(4);
+int SocketListener::startListener(const char *sock_path) {
+    return startListener(sock_path, 4);
 }
 
 /*
@@ -79,34 +79,34 @@ int SocketListener::startListener() {
  * This is inline and not in libcutils proper because we want to use this in
  * third-party daemons with minimal modification.
  */
-int SocketListener::startListener(int backlog) {
+int SocketListener::startListener(const char *sock_path, int backlog) {
 
     if (!mSocketName && mSock == -1) {
-        printf("Failed to start unbound listener");
+        printf("Failed to start unbound listener\n");
         errno = EINVAL;
         return -1;
     } else if (mSocketName) {
-        if ((mSock = create_socket(mSocketName, SOCK_STREAM, 0666, 0, 0)) < 0) {
-            printf("Obtaining file descriptor socket '%s' failed: %s",
+        if ((mSock = create_socket(sock_path, mSocketName, SOCK_STREAM, 0666, 0, 0)) < 0) {
+            printf("Obtaining file descriptor socket '%s' failed: %s\n",
                  mSocketName, strerror(errno));
             return -1;
         }
-        printf("got mSock = %d for %s", mSock, mSocketName);
+        printf("got mSock = %d for %s\n", mSock, mSocketName);
     }
 
     if (mListen && listen(mSock, backlog) < 0) {
-        printf("Unable to listen on socket (%s)", strerror(errno));
+        printf("Unable to listen on socket (%s)\n", strerror(errno));
         return -1;
     } else if (!mListen)
         mClients->push_back(new SocketClient(mSock, false, mUseCmdNum));
 
     if (pipe(mCtrlPipe)) {
-        printf("pipe failed (%s)", strerror(errno));
+        printf("pipe failed (%s)\n", strerror(errno));
         return -1;
     }
 
     if (pthread_create(&mThread, NULL, SocketListener::threadStart, this)) {
-        printf("pthread_create (%s)", strerror(errno));
+        printf("pthread_create (%s)\n", strerror(errno));
         return -1;
     }
 
@@ -119,13 +119,13 @@ int SocketListener::stopListener() {
 
     rc = TEMP_FAILURE_RETRY(write(mCtrlPipe[1], &c, 1));
     if (rc != 1) {
-        printf("Error writing to control pipe (%s)", strerror(errno));
+        printf("Error writing to control pipe (%s)\n", strerror(errno));
         return -1;
     }
 
     void *ret;
     if (pthread_join(mThread, &ret)) {
-        printf("Error joining to listener thread (%s)", strerror(errno));
+        printf("Error joining to listener thread (%s)\n", strerror(errno));
         return -1;
     }
     close(mCtrlPipe[0]);
@@ -185,11 +185,11 @@ void SocketListener::runListener() {
             }
         }
         pthread_mutex_unlock(&mClientsLock);
-        printf("mListen=%d, max=%d, mSocketName=%s", mListen, max, mSocketName);
+        printf("mListen=%d, max=%d, mSocketName=%s\n", mListen, max, mSocketName);
         if ((rc = select(max + 1, &read_fds, NULL, NULL, NULL)) < 0) {
             if (errno == EINTR)
                 continue;
-            printf("select failed (%s) mListen=%d, max=%d", strerror(errno), mListen, max);
+            printf("select failed (%s) mListen=%d, max=%d\n", strerror(errno), mListen, max);
             sleep(1);
             continue;
         } else if (!rc)
@@ -211,10 +211,10 @@ void SocketListener::runListener() {
             do {
                 alen = sizeof(addr);
                 c = accept(mSock, &addr, &alen);
-                printf("%s got %d from accept", mSocketName, c);
+                printf("%s got %d from accept\n", mSocketName, c);
             } while (c < 0 && errno == EINTR);
             if (c < 0) {
-                printf("accept failed (%s)", strerror(errno));
+                printf("accept failed (%s)\n", strerror(errno));
                 sleep(1);
                 continue;
             }
@@ -258,7 +258,7 @@ bool SocketListener::release(SocketClient* c, bool wakeup) {
     /* if our sockets are connection-based, remove and destroy it */
     if (mListen && c) {
         /* Remove the client from our array */
-        printf("going to zap %d for %s", c->getSocket(), mSocketName);
+        printf("going to zap %d for %s\n", c->getSocket(), mSocketName);
         pthread_mutex_lock(&mClientsLock);
         SocketClientCollection::iterator it;
         for (it = mClients->begin(); it != mClients->end(); ++it) {
@@ -302,9 +302,7 @@ void SocketListener::sendBroadcast(int code, const char *msg, bool addErrno) {
         safeList.erase(i);
         // broadcasts are unsolicited and should not include a cmd number
         if (c->sendMsg(code, msg, addErrno, false)) {
-            printf
-
-            ("Error sending broadcast (%s)", strerror(errno));
+            printf("Error sending broadcast (%s)\n", strerror(errno));
         }
         c->decRef();
     }

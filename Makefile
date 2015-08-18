@@ -10,6 +10,7 @@ OBJS := \
 src/FrameworkClient.o \
 src/NetlinkEvent.o \
 src/SocketClient.o \
+src/SocketUtil.o \
 src/FrameworkCommand.o \
 src/NetlinkListener.o \
 src/SocketListener.o \
@@ -22,7 +23,7 @@ all: $(OBJS)
 	$(CC) $(OBJS) $(LDFLAGS) -o $(SONAME)
 
 install:
-	cp $(SONAME) ../obj/
+	cp $(SONAME) obj/
 	cp $(SONAME) /usr/lib
 
 clean:
