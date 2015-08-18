@@ -11,6 +11,9 @@
 #include <string.h>
 #include <errno.h>
 
+#include <KeyCrypto.h>
+#include <Item.h>
+
 #include "DekdCmdListener.h"
 
 
@@ -38,6 +41,13 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
+	KeyCrypto *crypto = new KeyCrypto();
+	SymKey *key = new SymKey(32, 32*8, CRYPTO_ALG_AES);
+	PubKey *pubKey = new PubKey(512, 2048, CRYPTO_ALG_RSA);
+	//shared_ptr<PubKey> pubKey(new PubKey(512, 2048, CRYPTO_ALG_RSA));
+	//shared_ptr<SymKey> key(new SymKey(32, 32*8, CRYPTO_ALG_AES));
+
+	crypto->encrypt((Item *)key, (Key *)pubKey);
 
 	while(1) {
 		ctlCl->sendBroadcast(5, "locked", false);

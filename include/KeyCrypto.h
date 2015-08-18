@@ -18,8 +18,13 @@ public:
 
 	void generateKeyPair(int alg,
 			PubKey &pubKey, PrivKey &privKey);
-	bool encrypt(shared_ptr<Item> &item, shared_ptr<Key> &key);
-	bool decrypt(shared_ptr<Item> &item, shared_ptr<Key> &key);
+#if 0
+	bool encrypt(shared_ptr<Item> &item, shared_ptr<AbstractKey> &key);
+	bool decrypt(shared_ptr<Item> &item, shared_ptr<AbstractKey> &key);
+#else
+	bool encrypt(Item *item, Key *key);
+	bool decrypt(Item *item, Key *key);
+#endif
 };
 
 #endif /* KEYCRYPTO_H_ */

@@ -4,7 +4,7 @@ TARGET_DIR = ../obj/
 TARGET = $(TARGET_DIR)dekd
 
 LIBS = 
-CFLAGS = -O2 -Wall -fPIC -g -I../include/
+CFLAGS = -O2 -Wall -fPIC -std=c++0x -g -I../include/
 LDFLAGS = -fPIC -L$(TARGET_DIR) -lknox_utils -lpthread
 
 OBJS := DekdCmdListener.o DekdCommand.o main.o

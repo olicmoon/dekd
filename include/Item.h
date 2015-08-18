@@ -33,7 +33,7 @@ public:
 	void zeroOut();
 };
 
-typedef shared_ptr<AbstractItem> Item;
+typedef AbstractItem Item;
 
 class Key : public AbstractItem {
 public:
@@ -45,12 +45,12 @@ public:
 		this->bits = bits;
 		this->alg = alg;
 	}
-	~Key();
+	~Key() { }
 };
 
-typedef shared_ptr<Key> SymKey;
-typedef shared_ptr<Key> PubKey;
-typedef shared_ptr<Key> PrivKey;
+typedef Key SymKey;
+typedef Key PubKey;
+typedef Key PrivKey;
 
 class EncKey : public Key {
 public:
@@ -59,7 +59,7 @@ public:
 	EncKey(int keyLen, int bits, int alg)
 	: Key(keyLen, bits, alg) {
 		memset(auth_tag, 0, 16);
-	};
+	}
 	~EncKey() { }
 };
 
