@@ -1,30 +1,13 @@
-CC = gcc
+SUBDIRS = util daemon client
+.PHONY: subdirs $(SUBDIRS)
 
-SONAME = libknox_utils.so
+CLEANDIRS = $(SUBDIRS:%=clean-%)
 
-LIBS = 
-CFLAGS = -O2 -Wall -fPIC -g -I./include/
-LDFLAGS = -shared -fPIC
+subdirs: $(SUBDIRS)
 
-OBJS := \
-src/FrameworkClient.o \
-src/NetlinkEvent.o \
-src/SocketClient.o \
-src/FrameworkCommand.o \
-src/NetlinkListener.o \
-src/SocketListener.o \
-src/FrameworkListener.o
+$(SUBDIRS):
+	$(MAKE) -C $@
 
-%.o: %.cpp
-	$(CC) $(CFLAGS) -c $< -o $@
-
-all: $(OBJS)
-	$(CC) $(OBJS) $(LDFLAGS) -o $(SONAME)
-
-install:
-	cp $(SONAME) ../obj/
-	cp $(SONAME) /usr/lib
-
-clean:
-	rm -f $(OBJS) $(SONAME)
-
+clean: $(CLEANDIRS)
+$(CLEANDIRS):
+	$(MAKE) -C $(@:clean-%=%) clean

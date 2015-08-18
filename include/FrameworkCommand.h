@@ -17,6 +17,7 @@
 #define __FRAMEWORK_CMD_HANDLER_H
 
 #include "List.h"
+#include "FrameworkResponse.h"
 
 class SocketClient;
 

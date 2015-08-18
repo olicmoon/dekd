@@ -38,22 +38,22 @@ int main(int argc, char **argv) {
 	int sock;
 	int cmdOffset = 0;
 
-	if (argc < 2)
+	if (argc < 3)
 		usage(argv[0]);
 
 	// try interpreting the first arg as the socket name - if it fails go back to netd
 
-	if ((sock = socket_local_client(argv[1],
+	if ((sock = socket_local_client(argv[1], argv[2],
 					SOCK_STREAM)) < 0) {
 		fprintf(stderr, "Error connecting (%s)\n", strerror(errno));
 		exit(4);
 	} else {
-		if (argc < 3) usage(argv[0]);
-		printf("Using alt socket %s\n", argv[1]);
+		if (argc < 4) usage(argv[0]);
+		printf("Using alt socket %s\n", argv[2]);
 		cmdOffset = 1;
 	}
 
-	if (!strcmp(argv[1+cmdOffset], "monitor"))
+	if (!strcmp(argv[2+cmdOffset], "monitor"))
 		exit(do_monitor(sock, 0));
 	exit(do_cmd(sock, argc-cmdOffset, &(argv[cmdOffset])));
 }
@@ -64,8 +64,8 @@ static int do_cmd(int sock, int argc, char **argv) {
 	int i;
 
 	/* Check if 1st arg is cmd sequence number */ 
-	strtol(argv[1], &conv_ptr, 10);
-	if (conv_ptr == argv[1]) {
+	strtol(argv[2], &conv_ptr, 10);
+	if (conv_ptr == argv[2]) {
 		final_cmd = strdup("0 ");
 	} else {
 		final_cmd = strdup("");
@@ -76,7 +76,7 @@ static int do_cmd(int sock, int argc, char **argv) {
 		return res;
 	}
 
-	for (i = 1; i < argc; i++) {
+	for (i = 2; i < argc; i++) {
 		if (strchr(argv[i], '"')) {
 			perror("argument with embedded quotes not allowed");
 			free(final_cmd);
@@ -112,7 +112,7 @@ static int do_monitor(int sock, int stop_after_cmd) {
 	char *buffer = (char *)malloc(4096);
 
 	if (!stop_after_cmd)
-		printf("[Connected to Netd]\n");
+		printf("[Connected]\n");
 
 	while(1) {
 		fd_set read_fds;
@@ -139,7 +139,7 @@ static int do_monitor(int sock, int stop_after_cmd) {
 			if ((rc = read(sock, buffer, 4096)) <= 0) {
 				int res = errno;
 				if (rc == 0)
-					fprintf(stderr, "Lost connection to Netd - did it crash?\n");
+					fprintf(stderr, "Lost connection - did it crash?\n");
 				else
 					fprintf(stderr, "Error reading data (%s)\n", strerror(errno));
 				free(buffer);
@@ -175,6 +175,6 @@ static int do_monitor(int sock, int stop_after_cmd) {
 }
 
 static void usage(char *progname) {
-	fprintf(stderr, "Usage: %s [<sockname>] ([monitor] | ([<cmd_seq_num>] <cmd> [arg ...]))\n", progname);
+	fprintf(stderr, "Usage: %s [<sockdir>] [<sockname>] ([monitor] | ([<cmd_seq_num>] <cmd> [arg ...]))\n", progname);
 	exit(1);
 }

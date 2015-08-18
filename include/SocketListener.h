@@ -37,8 +37,8 @@ public:
     SocketListener(int socketFd, bool listen);
 
     virtual ~SocketListener();
-    int startListener();
-    int startListener(int backlog);
+    int startListener(const char *sock_path);
+    int startListener(const char *sock_path, int backlog);
     int stopListener();
 
     void sendBroadcast(int code, const char *msg, bool addErrno);

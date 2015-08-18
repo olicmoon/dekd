@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-#include <stdarg.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <fcntl.h>
 #include <ctype.h>
@@ -37,12 +38,11 @@
  * daemon. We communicate the file descriptor's value via the environment
  * variable ANDROID_SOCKET_ENV_PREFIX<name> ("ANDROID_SOCKET_foo").
  */
-int create_socket(const char *name, int type, mode_t perm,
-		uid_t uid, gid_t gid)
+int create_socket(const char *sock_dir, const char *name,
+		int type, mode_t perm, uid_t uid, gid_t gid)
 {
     struct sockaddr_un addr;
     int fd, ret;
-    char *filecon;
 
     fd = socket(PF_UNIX, type, 0);
     if (fd < 0) {
@@ -52,16 +52,14 @@ int create_socket(const char *name, int type, mode_t perm,
 
     memset(&addr, 0 , sizeof(addr));
     addr.sun_family = AF_UNIX;
-    snprintf(addr.sun_path, sizeof(addr.sun_path), SOCKET_DIR"/%s",
-             name);
+    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/%s",
+    		sock_dir, name);
 
     ret = unlink(addr.sun_path);
     if (ret != 0 && errno != ENOENT) {
         printf("Failed to unlink old socket '%s': %s\n", name, strerror(errno));
         goto out_close;
     }
-
-    filecon = NULL;
 
     ret = bind(fd, (struct sockaddr *) &addr, sizeof (addr));
     if (ret) {
