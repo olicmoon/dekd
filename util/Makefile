@@ -4,10 +4,12 @@ TARGET_DIR = ../obj/
 TARGET = $(TARGET_DIR)libknox_utils.so
 
 LIBS = 
-CFLAGS = -O2 -Wall -fPIC -g -I../include/
+CFLAGS = -O2 -Wall -fPIC -std=c++0x -g -I../include/
 LDFLAGS = -shared -fPIC
 
 OBJS := \
+KeyCrypto.o \
+Item.o \
 FrameworkClient.o \
 NetlinkEvent.o \
 SocketClient.o \
