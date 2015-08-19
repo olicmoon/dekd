@@ -5,7 +5,8 @@
  *      Author: olic
  */
 
-#include "KeyCrypto.h"
+#include <KeyCrypto.h>
+#include <native_crypto.h>
 
 KeyCrypto::KeyCrypto() {
 
@@ -81,7 +82,7 @@ bool KeyCrypto::encrypt(Item *item, Key *key) {
 	switch(alg) {
 	case CRYPTO_ALG_AES:
 	{
-		SymKey *_key = key;
+		EncItem *eitem = aes_gcm_encrypt(item, key);
 	}
 		break;
 	case CRYPTO_ALG_RSA:
