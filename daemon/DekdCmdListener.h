@@ -28,6 +28,7 @@
 
 #include <FrameworkListener.h>
 #include "DekdCommand.h"
+#include "KeyCrypto.h"
 
 class DekdReqCmdListener : public FrameworkListener {
 public:
@@ -35,6 +36,7 @@ public:
     virtual ~DekdReqCmdListener() {}
 
 private:
+    shared_ptr<KeyCrypto> mKeyCrypto;
     static void dumpArgs(int argc, char **argv, int argObscure);
 
     class EncCmd : public DekdCommand {

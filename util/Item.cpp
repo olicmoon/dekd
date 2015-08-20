@@ -26,6 +26,7 @@ AbstractItem::AbstractItem(const char *buf, unsigned int len)
 :_buffer(NULL), len(len), format(CRYPTO_ITEM_FMT_BIN) {
 	if(this->len > 0) {
 		_buffer = (unsigned char *)malloc(this->len);
+		memset(_buffer, 0, this->len);
 		memcpy(_buffer, buf, this->len);
 	}
 	printf("Item[%p, %d] created\n", this, this->len);
@@ -72,7 +73,7 @@ void AbstractItem::dump(const char *buf,
 	unsigned int i;
 
 	if(buf && len > 0) {
-		printf("%s : len=%d: ", str, len);
+		printf("%s[%p] : len=%d: ", str, buf, len);
 		for(i=0;i<len;++i) {
 			if((i%16) == 0)
 				printf("\n");
@@ -80,11 +81,11 @@ void AbstractItem::dump(const char *buf,
 		}
 		printf("\n");
 	} else {
-		printf("%s : empty\n", str);
+		printf("%s[%p] : empty\n", str, buf);
 	}
 }
 
-shared_ptr<AbstractItem> AbstractItem::serialize() {
+shared_ptr<SerializedItem> AbstractItem::serialize() {
 	char *tmp = (char *)malloc(CRYPT_ITEM_MAX_LEN);
 	char tempBuf[CRYPT_ITEM_MAX_LEN];
 
@@ -94,9 +95,9 @@ shared_ptr<AbstractItem> AbstractItem::serialize() {
 	}
 
 	Base64Encode(this->getData(), this->len, &tmp);
-	snprintf(tempBuf, CRYPT_ITEM_MAX_LEN, "0 %s ? $", tmp);
-	shared_ptr<Item> serializedItem(new Item(tempBuf, strlen(tempBuf)));
-	serializedItem->format = CRYPTO_ITEM_FMT_B64;
+	snprintf(tempBuf, CRYPT_ITEM_MAX_LEN, "0 %s ? ? $", tmp);
+	shared_ptr<SerializedItem> serializedItem(
+			new SerializedItem(tempBuf));
 
 	memset(tempBuf, 0, CRYPT_ITEM_MAX_LEN);
 	memset(tmp, 0, CRYPT_ITEM_MAX_LEN);
@@ -104,135 +105,149 @@ shared_ptr<AbstractItem> AbstractItem::serialize() {
 	return serializedItem;
 }
 
-shared_ptr<AbstractItem> AbstractItem::deserialize() {
-	shared_ptr<Item> result;
+shared_ptr<SerializedItem> EncItem::serialize() {
+	char *tmp_eitem = NULL;
+	char *tmp_eitem_tag = NULL;
+	char *tmp_dpub = NULL;
 
-	if(this->format == CRYPTO_ITEM_FMT_BIN) {
-		printf("already binary item");
-		return NULL;
-	}
-
-	char *tempBuf = strdup((const char *)this->getData());
-	const char s[2] = " ";
-
-	char *tok_alg = strtok(tempBuf, s);
-	if(tok_alg == NULL)  {
-		printf("failed to deserialize %s\n", tempBuf);
-		free(tempBuf);
-		return NULL;
-	}
-	int alg = atoi(tok_alg);
-
-	char *tmp = (char *)malloc(CRYPT_ITEM_MAX_LEN);
-	int len;
-	char *tok1 = strtok(NULL, s);
-	if(tok1 == NULL) {
-		printf("Failed to deserialize(step:1) %s\n", tempBuf);
-		free(tempBuf);
-		return NULL;
-	}
-
-	char *tok2 = strtok(NULL, s);
-	if(tok2 == NULL) {
-		printf("Failed to deserialize(step:2) %s\n", tempBuf);
-		free(tempBuf);
-		return NULL;
-	}
-
-
-	char *tok3 = strtok(NULL, s);
-	if(tok3 == NULL || *tok3 != '$') {
-		printf("Failed to deserialize(step:3) %s\n", tempBuf);
-		free(tempBuf);
-		return NULL;
-	}
-
-	printf("tok1: %s[%d]\n", tok1, strlen(tok1));
-	printf("tok2: %s[%d]\n", tok2, strlen(tok2));
-	printf("tok2: %s[%d]\n", tok3, strlen(tok3));
-	if(alg == CRYPTO_ALG_PLAIN) {
-		Base64Decode(tok1, (unsigned char **)&tmp, (size_t *)&len);
-		Item *item = new Item(tmp, len);
-		memset(tmp, 0, CRYPT_ITEM_MAX_LEN);
-		free(tempBuf);
-		return shared_ptr<Item> (item);
-	} else if(alg == CRYPTO_ALG_AES) {
-		Base64Decode(tok1, (unsigned char **)&tmp, (size_t *)&len);
-		EncItem *eitem = new EncItem(tmp, len, alg);
-		Base64Decode(tok2, (unsigned char **)&eitem->auth_tag, (size_t *)&len);
-		free(tempBuf);
-		return shared_ptr<Item> (eitem);
-	} else if(alg == CRYPTO_ALG_RSA) {
-
-	} else if(alg == CRYPTO_ALG_ECDH) {
-
-		Base64Decode(tok1, (unsigned char **)&tmp, (size_t *)&len);
-		EncItem *eitem = new EncItem(tmp, len, alg);
-		Base64Decode(tok2, (unsigned char **)&tmp, (size_t *)&len);
-		eitem->setPubKey(new PubKey(tmp, len, 2048, alg));
-				fprintf(stderr, "%s:%d\n", __func__, __LINE__);eitem->getPubKey()->dump("tttt");
-		free(tempBuf);
-		return shared_ptr<Item> (eitem);
-	} else {
-		printf("failed to deserialize %s\n", tempBuf);
-		free(tempBuf);
-		return NULL;
-	}
-
-	free(tempBuf);
-	return NULL;
-}
-
-//shared_ptr<AbstractItem> AbstractItem::deserialize() {
-//	unsigned char tmp[CRYPT_ITEM_MAX_LEN];
-//	int len = 0;
-//
-//	if(this->format == CRYPTO_ITEM_FMT_BIN) {
-//		printf("already binary item");
-//		return NULL;
-//	}
-//
-//	base64d(this->getData(), tmp, &len);
-//	shared_ptr<Item> item(new Item((const char *)tmp, len));
-//
-//	return item;
-//}
-
-shared_ptr<AbstractItem> EncItem::serialize() {
-	char *tmp_eitem = (char *)malloc(CRYPT_ITEM_MAX_LEN);
-	char *tempBuf = (char *)malloc(CRYPT_ITEM_MAX_LEN);
+	char tempBuf[CRYPT_ITEM_MAX_LEN];
 	if(this->format == CRYPTO_ITEM_FMT_B64) {
 		printf("already base64 item");
 		return NULL;
 	}
 
 	Base64Encode(this->getData(), this->len, &tmp_eitem);
-	//printf("tmp_eitem:%s\n", tmp_eitem);
+	Base64Encode(this->auth_tag, 16, &tmp_eitem_tag);
 
 	if(alg == CRYPTO_ALG_AES) {
 		char *tmp_auth_tag = (char *)malloc(CRYPT_ITEM_MAX_LEN);
 		Base64Encode(this->auth_tag, 16, &tmp_auth_tag);
-		//printf("auth_tag:%s\n", auth_tag);
 
-		sprintf(tempBuf, "%d %s %s $", alg, tmp_eitem, tmp_auth_tag);
+		sprintf(tempBuf, "%d %s %s ? $", alg, tmp_eitem, tmp_auth_tag);
 	} else if(alg == CRYPTO_ALG_ECDH) {
-		char *tmp_dpub = (char *)malloc(CRYPT_ITEM_MAX_LEN);
 		PubKey *pk = this->getPubKey();
 		if(pk == NULL) {
 			printf("%s[ECDH] :: invalid pub key\n", __func__);
 			return NULL;
 		}
 		Base64Encode(pk->getData(), pk->len, &tmp_dpub);
-		printf("tmp_dpub:%s[%d]\n", tmp_dpub, strlen((const char *)tmp_dpub));
-		sprintf(tempBuf, "%d %s %s $", alg, tmp_eitem, tmp_dpub);
+		sprintf(tempBuf, "%d %s %s %s $", alg, tmp_eitem, tmp_eitem_tag, tmp_dpub);
 	} else
-		sprintf(tempBuf, "%d %s ? $", alg, tmp_eitem);
+		sprintf(tempBuf, "%d %s %s ? $", alg, tmp_eitem, tmp_eitem_tag);
 
-	printf("%s tempBuf:%s\n", __func__, tempBuf);
-
-	shared_ptr<Item> encodedItem(new Item(tempBuf, strlen(tempBuf)));
+	shared_ptr<SerializedItem> encodedItem(
+			new SerializedItem(tempBuf));
 	encodedItem->format = CRYPTO_ITEM_FMT_B64;
 
-	//memset(tempBuf, 0, CRYPT_ITEM_MAX_LEN);
+	memset(tempBuf, 0, CRYPT_ITEM_MAX_LEN);
+
+	if(tmp_eitem != NULL) free(tmp_eitem);
+	if(tmp_eitem_tag != NULL) free(tmp_eitem_tag);
+	if(tmp_dpub != NULL) free(tmp_dpub);
 	return encodedItem;
+}
+
+void SerializedItem::init() {
+	const char s[2] = " ";
+	char *terminator;
+
+	char *tok_alg = strtok((char *)_buffer, s);
+	if(tok_alg == NULL)  {
+		printf("failed to deserialize %s\n", _buffer);
+		goto out;
+	}
+	_alg = atoi(tok_alg);
+
+	_item = strtok(NULL, s);
+	if(_item == NULL) {
+		printf("failed to serialize::init() : %d\n", __LINE__);
+		goto out;
+	}
+	_tag = strtok(NULL, s);
+	if(_tag == NULL) {
+		printf("failed to serialize::init() : %d\n", __LINE__);
+		goto out;
+	}
+
+	_pubKey = strtok(NULL, s);
+	if(_pubKey == NULL) {
+		printf("failed to serialize::init() : %d\n", __LINE__);
+		goto out;
+	};
+
+	terminator = strtok(NULL, s);
+	if(terminator == NULL || *terminator != '$') {
+		printf("failed to serialize::init() : %d\n", __LINE__);
+		goto out;
+	}
+
+	out:
+	return;
+}
+
+SerializedItem::SerializedItem(const char *buf)
+: AbstractItem(buf, strlen(buf)) {
+	format = CRYPTO_ITEM_FMT_B64;
+
+	init();
+}
+
+SerializedItem::SerializedItem(int alg, const char *data,
+		const char *tag, const char *pubKey)
+: AbstractItem(CRYPT_ITEM_MAX_LEN) {
+	format = CRYPTO_ITEM_FMT_B64;
+
+	snprintf((char *)_buffer, CRYPT_ITEM_MAX_LEN,
+			"%d %s %s %s $", alg,
+			(data == NULL) ? "?" : data,
+			(tag == NULL) ? "?" : tag,
+			(pubKey == NULL) ? "?" : pubKey
+	);
+
+	init();
+}
+
+shared_ptr<AbstractItem> SerializedItem::deserialize() {
+	shared_ptr<Item> result = NULL;
+
+	unsigned char *tmp;
+	unsigned char *tmp_auth_tag;
+	unsigned char *tmp_dpub;
+	size_t len;
+
+	if(_alg == CRYPTO_ALG_PLAIN) {
+		Base64Decode(_item, &tmp, &len);
+		Item *item = new Item((const char *)tmp, len);
+		memset(tmp, 0, CRYPT_ITEM_MAX_LEN);
+
+		result = shared_ptr<Item> (item);
+	} else if(_alg == CRYPTO_ALG_AES) {
+		Base64Decode(_item, &tmp, &len);
+		EncItem *eitem = new EncItem((const char *)tmp, len, _alg);
+
+		Base64Decode(_tag, &tmp_auth_tag, &len);
+		memcpy(eitem->auth_tag, tmp_auth_tag, 16);
+
+		result = shared_ptr<Item> (eitem);
+	} else if(_alg == CRYPTO_ALG_RSA) {
+
+	} else if(_alg == CRYPTO_ALG_ECDH) {
+
+		Base64Decode(_item, &tmp, &len);
+		EncItem *eitem = new EncItem((const char *)tmp, len, _alg);
+
+		Base64Decode(_tag, &tmp_auth_tag, &len);
+		if(len != 16) printf("b64 output auth len is not 16 [%d]\n", len);
+		memcpy(eitem->auth_tag, tmp_auth_tag, 16);
+
+		Base64Decode(_pubKey, &tmp_dpub, &len);
+		eitem->setPubKey(new PubKey((const char *)tmp_dpub, len, 2048, _alg));
+
+		result = shared_ptr<Item> (eitem);
+	}
+
+	if(tmp != NULL) free(tmp);
+	if(tmp_auth_tag != NULL) free(tmp_auth_tag);
+	if(tmp_dpub != NULL) free(tmp_dpub);
+	return result;
 }

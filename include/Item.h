@@ -25,6 +25,8 @@ using std::dynamic_pointer_cast;
 
 #define CRYPT_ITEM_MAX_LEN 512
 
+class SerializedItem;
+
 class AbstractItem {
 protected:
 	unsigned char *_buffer;
@@ -32,15 +34,14 @@ protected:
 public:
 	pthread_mutex_t mutex;
 
-	unsigned int len = 0;
-	unsigned int format = CRYPTO_ITEM_FMT_BIN;
+	unsigned int len;
+	unsigned int format;
 	AbstractItem();
 	AbstractItem(unsigned int len);
 	AbstractItem(const char *buf, unsigned int len);
 	virtual ~AbstractItem();
 
-	virtual shared_ptr<AbstractItem> serialize();
-	virtual shared_ptr<AbstractItem> deserialize();
+	virtual shared_ptr<SerializedItem> serialize();
 	unsigned char *alloc(ssize_t len);
 	void zeroOut();
 	void dump(const char* str);
@@ -50,6 +51,36 @@ public:
 	unsigned char *getData() {
 		return _buffer;
 	}
+};
+
+class SerializedItem : public AbstractItem {
+public:
+	SerializedItem(const char *buf);
+	SerializedItem(int alg, const char *data,
+			const char *tag, const char *pubKey);
+
+	shared_ptr<AbstractItem> deserialize();
+
+	int getAlg() { return this->_alg; }
+	char *getItem() { return this->_item; }
+	char *getAuthTag() { return this->_tag; }
+	char *getPubKey() { return this->_pubKey; }
+
+	void dump(const char *str) {
+		printf("serialized item[%s] \n", str);
+		printf("alg:      %d\n", this->_alg);
+		printf("item:     %s\n", this->_item);
+		printf("auth-tag: %s\n", this->_tag);
+		printf("pubKey:   %s\n", this->_pubKey);
+	}
+
+private:
+	void init();
+
+	int _alg;
+	char *_item;
+	char *_tag;
+	char *_pubKey;
 };
 
 typedef AbstractItem Item;
@@ -132,7 +163,7 @@ public:
 	 * Type' 'Item.buffer' 'auth_tag
 	 * Type' 'Item.buffer' 'PubKey.buffer
 	 */
-	virtual shared_ptr<AbstractItem> serialize();
+	virtual shared_ptr<SerializedItem> serialize();
 private:
 	PubKey *_pubKey;
 };

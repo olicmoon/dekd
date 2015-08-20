@@ -5,11 +5,12 @@
  *      Author: olic
  */
 
-#include <KeyCrypto.h>
-#include <native_crypto.h>
+#include "KeyCrypto.h"
 
 KeyCrypto::KeyCrypto() {
-
+	pubKey = NULL;
+	privKey = NULL;
+	symKey = NULL;
 }
 
 KeyCrypto::~KeyCrypto() {
@@ -61,6 +62,6 @@ Item *KeyCrypto::decrypt(EncItem *eitem, Key *key) {
 		return NULL;
 	}
 
-	return NULL;
+	return item;
 
 }

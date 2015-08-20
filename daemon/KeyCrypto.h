@@ -8,9 +8,9 @@
 #ifndef KEYCRYPTO_H_
 #define KEYCRYPTO_H_
 
-#include "List.h"
-#include "Item.h"
-#include "native_crypto.h"
+#include <List.h>
+#include <Item.h>
+#include <native_crypto.h>
 
 class KeyCrypto {
 public:
@@ -26,6 +26,11 @@ public:
 	EncItem *encrypt(Item *item, Key *key);
 	Item *decrypt(EncItem *eitem, Key *key);
 #endif
+
+private:
+	PubKey *pubKey;
+	PrivKey *privKey;
+	SymKey *symKey;
 };
 
 #endif /* KEYCRYPTO_H_ */

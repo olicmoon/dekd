@@ -11,17 +11,18 @@
 #include <string.h>
 #include <errno.h>
 
-#include <KeyCrypto.h>
 #include <Item.h>
 
+#include "KeyCrypto.h"
 #include "DekdCmdListener.h"
 
+#define TEST_STRING "he first known standardized use of the encoding"
 void test1() {
+	KeyCrypto *crypto = new KeyCrypto();
 	PubKey *devPub = new PubKey(CRYPT_ITEM_MAX_LEN, 2048, CRYPTO_ALG_ECDH);
 	PrivKey *devPri = new PrivKey(CRYPT_ITEM_MAX_LEN, 2048, CRYPTO_ALG_ECDH);
 
-	KeyCrypto *crypto = new KeyCrypto();
-	SymKey *key = new SymKey("olic", 32, 32*8, CRYPTO_ALG_AES);
+	SymKey *key = new SymKey(TEST_STRING, strlen(TEST_STRING), 32*8, CRYPTO_ALG_AES);
 
 	if(ecdh_gen_keypair(devPub, devPri)) {
 		printf("ecdh_GenKeyPair() failed.\n");
@@ -32,33 +33,25 @@ void test1() {
 	eitem->dump("eitem");
 	eitem->getPubKey()->dump("eitem::pubKey");
 
-	{
-		printf("\n\n=======================================\n");
-		PubKey *pk = eitem->getPubKey();
-
-		char *tmp = (char *)malloc(CRYPT_ITEM_MAX_LEN);
-		char *tmp2 = (char *)malloc(CRYPT_ITEM_MAX_LEN);
-		Item::dump((char *)pk->getData(), pk->len, "plain");
-
-		Base64Encode(pk->getData(), pk->len, &tmp);
-		Item::dump(tmp, strlen(tmp), "encoded");
-		printf ("encoded : %s\n", tmp);
-		int len;
-		Base64Decode(tmp, (unsigned char **)&tmp2, (size_t *)&len);
-		Item::dump(tmp2, len, "decoded");
-	}
-	shared_ptr<Item> serializedItem = eitem->serialize();
+	shared_ptr<SerializedItem> sItem = eitem->serialize();
 	delete eitem;
 
-	//serializedItem->dump("serializedItem");
+	sItem->dump("echd encrypted");
+
+	SerializedItem *sItem2 =
+			new SerializedItem(sItem->getAlg(), sItem->getItem()
+					, sItem->getAuthTag(), sItem->getPubKey());
 
 	shared_ptr<EncItem> decodedItem =
-			dynamic_pointer_cast<EncItem>(serializedItem->deserialize());
+			dynamic_pointer_cast<EncItem>(sItem2->deserialize());
 	decodedItem->dump("decodedItem");
 	decodedItem->getPubKey()->dump("decodedItem::pubKey");
 
 	Item *result = crypto->decrypt(decodedItem.get(), devPri);
-	if(result) result->dump("result");
+	result->dump("result");
+
+	delete sItem2;
+	delete result;
 
 	delete devPub;
 	delete devPri;

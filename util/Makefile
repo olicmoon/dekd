@@ -8,7 +8,6 @@ CFLAGS = -O2 -Wall -fPIC -std=c++0x -g -I../include/
 LDFLAGS = -shared -fPIC -g
 
 OBJS := \
-KeyCrypto.o \
 Item.o \
 FrameworkClient.o \
 NetlinkEvent.o \
