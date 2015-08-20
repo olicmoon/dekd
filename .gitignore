@@ -3,3 +3,5 @@
 .project
 .cproject
 crypto
+obj/ndc
+obj/dekd
