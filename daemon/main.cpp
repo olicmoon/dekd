@@ -32,21 +32,22 @@ void test1() {
 	eitem->dump("eitem");
 	eitem->getPubKey()->dump("eitem::pubKey");
 
-	{
-		printf("\n\n=======================================\n");
-		PubKey *pk = eitem->getPubKey();
-
-		char *tmp = (char *)malloc(CRYPT_ITEM_MAX_LEN);
-		char *tmp2 = (char *)malloc(CRYPT_ITEM_MAX_LEN);
-		Item::dump((char *)pk->getData(), pk->len, "plain");
-
-		Base64Encode(pk->getData(), pk->len, &tmp);
-		Item::dump(tmp, strlen(tmp), "encoded");
-		printf ("encoded : %s\n", tmp);
-		int len;
-		Base64Decode(tmp, (unsigned char **)&tmp2, (size_t *)&len);
-		Item::dump(tmp2, len, "decoded");
-	}
+//	{
+//		printf("\n\n=======================================\n");
+//		PubKey *pk = eitem->getPubKey();
+//
+//		char *tmp, *tmp2;
+//		Item::dump((char *)pk->getData(), pk->len, "plain");
+//
+//		Base64Encode(pk->getData(), pk->len, &tmp);
+//		Item::dump(tmp, strlen(tmp), "encoded");
+//		printf ("encoded : %s\n", tmp);
+//		int len;
+//		Base64Decode(tmp, (unsigned char **)&tmp2, (size_t *)&len);
+//		Item::dump(tmp2, len, "decoded");
+//		printf("tmp2[%p]\n", tmp2);
+//
+//	}
 	shared_ptr<Item> serializedItem = eitem->serialize();
 	delete eitem;
 
