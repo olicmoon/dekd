@@ -5,6 +5,13 @@
  *      Author: olic
  */
 
+/**
+ * [socket] [cmd] [sub-cmd] [args...]
+ * response code :
+ * 200 : success
+ * 400 : error
+ */
+
 #include "DekdCmdListener.h"
 
 #include <stdio.h>
@@ -31,15 +38,15 @@ void dump_args(int argc, char **argv) {
 
 DekdReqCmdListener::DekdReqCmdListener() :
 	FrameworkListener("dekd_req", true) {
-	registerCmd(new ReqCmd());
+	registerCmd(new EncCmd());
 }
 
-DekdReqCmdListener::ReqCmd::ReqCmd()
-: DekdCommand("req") {
+DekdReqCmdListener::EncCmd::EncCmd()
+: DekdCommand("enc") {
 
 }
 
-int DekdReqCmdListener::ReqCmd::runCommand(SocketClient *c,
+int DekdReqCmdListener::EncCmd::runCommand(SocketClient *c,
 		int argc, char ** argv) {
 
 	dump_args(argc, argv);

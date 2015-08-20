@@ -37,10 +37,10 @@ public:
 private:
     static void dumpArgs(int argc, char **argv, int argObscure);
 
-    class ReqCmd : public DekdCommand {
+    class EncCmd : public DekdCommand {
     public:
-    	ReqCmd();
-        virtual ~ReqCmd() {}
+    	EncCmd();
+        virtual ~EncCmd() {}
         int runCommand(SocketClient *c, int argc, char ** argv);
     };
 };

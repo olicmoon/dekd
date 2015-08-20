@@ -10,6 +10,7 @@
 
 #include "List.h"
 #include "Item.h"
+#include "native_crypto.h"
 
 class KeyCrypto {
 public:
@@ -22,8 +23,8 @@ public:
 	bool encrypt(shared_ptr<Item> &item, shared_ptr<AbstractKey> &key);
 	bool decrypt(shared_ptr<Item> &item, shared_ptr<AbstractKey> &key);
 #else
-	bool encrypt(Item *item, Key *key);
-	bool decrypt(Item *item, Key *key);
+	EncItem *encrypt(Item *item, Key *key);
+	Item *decrypt(EncItem *eitem, Key *key);
 #endif
 };
 

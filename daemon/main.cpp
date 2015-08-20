@@ -16,14 +16,64 @@
 
 #include "DekdCmdListener.h"
 
+void test1() {
+	PubKey *devPub = new PubKey(CRYPT_ITEM_MAX_LEN, 2048, CRYPTO_ALG_ECDH);
+	PrivKey *devPri = new PrivKey(CRYPT_ITEM_MAX_LEN, 2048, CRYPTO_ALG_ECDH);
+
+	KeyCrypto *crypto = new KeyCrypto();
+	SymKey *key = new SymKey("olic", 32, 32*8, CRYPTO_ALG_AES);
+
+	if(ecdh_gen_keypair(devPub, devPri)) {
+		printf("ecdh_GenKeyPair() failed.\n");
+		exit(1);
+	}
+
+	EncItem *eitem = crypto->encrypt((Item *)key, (Key *)devPub);
+	eitem->dump("eitem");
+	eitem->getPubKey()->dump("eitem::pubKey");
+
+	{
+		printf("\n\n=======================================\n");
+		PubKey *pk = eitem->getPubKey();
+
+		char *tmp = (char *)malloc(CRYPT_ITEM_MAX_LEN);
+		char *tmp2 = (char *)malloc(CRYPT_ITEM_MAX_LEN);
+		Item::dump((char *)pk->getData(), pk->len, "plain");
+
+		Base64Encode(pk->getData(), pk->len, &tmp);
+		Item::dump(tmp, strlen(tmp), "encoded");
+		printf ("encoded : %s\n", tmp);
+		int len;
+		Base64Decode(tmp, (unsigned char **)&tmp2, (size_t *)&len);
+		Item::dump(tmp2, len, "decoded");
+	}
+	shared_ptr<Item> serializedItem = eitem->serialize();
+	delete eitem;
+
+	//serializedItem->dump("serializedItem");
+
+	shared_ptr<EncItem> decodedItem =
+			dynamic_pointer_cast<EncItem>(serializedItem->deserialize());
+	decodedItem->dump("decodedItem");
+	decodedItem->getPubKey()->dump("decodedItem::pubKey");
+
+	Item *result = crypto->decrypt(decodedItem.get(), devPri);
+	if(result) result->dump("result");
+
+	delete devPub;
+	delete devPri;
+
+	delete crypto;
+	delete key;
+}
 
 int main(int argc, char **argv) {
 	DekdReqCmdListener *reqCl = new DekdReqCmdListener();
 	DekdCtlCmdListener *ctlCl = new DekdCtlCmdListener();
 	char *sock_path;
 
-	if(argc < 2) {
-		printf("Usage : dekd [sock-path]\n");
+	if(argc == 1) {
+		test1();
 		exit(1);
 	}
 
@@ -40,14 +90,6 @@ int main(int argc, char **argv) {
 		printf("Unable to start DekdCtlCmdListener (%s)\n", strerror(errno) );
 		exit(1);
 	}
-
-	KeyCrypto *crypto = new KeyCrypto();
-	SymKey *key = new SymKey(32, 32*8, CRYPTO_ALG_AES);
-	PubKey *pubKey = new PubKey(512, 2048, CRYPTO_ALG_RSA);
-	//shared_ptr<PubKey> pubKey(new PubKey(512, 2048, CRYPTO_ALG_RSA));
-	//shared_ptr<SymKey> key(new SymKey(32, 32*8, CRYPTO_ALG_AES));
-
-	crypto->encrypt((Item *)key, (Key *)pubKey);
 
 	while(1) {
 		ctlCl->sendBroadcast(5, "locked", false);

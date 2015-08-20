@@ -5,7 +5,7 @@ TARGET = $(TARGET_DIR)libknox_utils.so
 
 LIBS = 
 CFLAGS = -O2 -Wall -fPIC -std=c++0x -g -I../include/
-LDFLAGS = -shared -fPIC
+LDFLAGS = -shared -fPIC -g
 
 OBJS := \
 KeyCrypto.o \

@@ -20,114 +20,47 @@ void KeyCrypto::generateKeyPair(int alg,
 
 }
 
-#if 0
-bool KeyCrypto::encrypt(shared_ptr<Item> &item, shared_ptr<AbstractKey> &key) {
+EncItem *KeyCrypto::encrypt(Item *item, Key *key) {
 	int alg = key->alg;
+	EncItem *eitem = NULL;
 
 	switch(alg) {
 	case CRYPTO_ALG_AES:
-	{
-		shared_ptr<SymKey> _key = dynamic_pointer_cast<SymKey>(key);
-	}
+		eitem = aes_gcm_encrypt(item, key);
 		break;
 	case CRYPTO_ALG_RSA:
-	{
-		shared_ptr<PubKey> _key = dynamic_pointer_cast<PubKey>(key);
-	}
+		printf("RSA not yet supported");
 		break;
 	case CRYPTO_ALG_ECDH:
-	{
-		shared_ptr<PubKey> _key = dynamic_pointer_cast<PubKey>(key);
-	}
+		eitem = ecdh_encrypt(item, key);
 		break;
 	default:
 		printf("unknown alg<%d>\n", alg);
-		return false;
+		return NULL;
 	}
 
-	return true;
+	return eitem;
 }
 
-bool KeyCrypto::decrypt(shared_ptr<Item> &item, shared_ptr<AbstractKey> &key) {
+Item *KeyCrypto::decrypt(EncItem *eitem, Key *key) {
 	int alg = key->alg;
+	Item *item = NULL;
 
 	switch(alg) {
 	case CRYPTO_ALG_AES:
-	{
-		shared_ptr<SymKey> _key = dynamic_pointer_cast<SymKey>(key);
-	}
+		item = aes_gcm_decrypt(eitem, key);
 		break;
 	case CRYPTO_ALG_RSA:
-	{
-		shared_ptr<PrivKey> _key = dynamic_pointer_cast<PrivKey>(key);
-	}
+		printf("RSA not yet supported");
 		break;
 	case CRYPTO_ALG_ECDH:
-	{
-		shared_ptr<PrivKey> _key = dynamic_pointer_cast<PrivKey>(key);
-	}
+		item = ecdh_decrypt(eitem, key);
 		break;
 	default:
 		printf("unknown alg<%d>\n", alg);
-		return false;
+		return NULL;
 	}
 
-	return true;
-
-}
-#else
-bool KeyCrypto::encrypt(Item *item, Key *key) {
-	int alg = key->alg;
-
-	switch(alg) {
-	case CRYPTO_ALG_AES:
-	{
-		EncItem *eitem = aes_gcm_encrypt(item, key);
-	}
-		break;
-	case CRYPTO_ALG_RSA:
-	{
-		PubKey *_key = key;
-	}
-		break;
-	case CRYPTO_ALG_ECDH:
-	{
-		PubKey *_key = key;
-	}
-		break;
-	default:
-		printf("unknown alg<%d>\n", alg);
-		return false;
-	}
-
-	return true;
-}
-
-bool KeyCrypto::decrypt(Item *item, Key *key) {
-	int alg = key->alg;
-
-	switch(alg) {
-	case CRYPTO_ALG_AES:
-	{
-		SymKey *_key = key;
-	}
-		break;
-	case CRYPTO_ALG_RSA:
-	{
-		PrivKey *_key = key;
-	}
-		break;
-	case CRYPTO_ALG_ECDH:
-	{
-		PrivKey *_key = key;
-	}
-		break;
-	default:
-		printf("unknown alg<%d>\n", alg);
-		return false;
-	}
-
-	return true;
+	return NULL;
 
 }
-#endif
