@@ -13,8 +13,10 @@
 
 #include <Item.h>
 
-#include "KeyCrypto.h"
 #include "DekdCmdListener.h"
+
+#include "KeyCrypto.h"
+#include "storage/SqlHelper.h"
 
 #define TEST_STRING "he first known standardized use of the encoding"
 void test1() {
@@ -60,13 +62,38 @@ void test1() {
 	delete key;
 }
 
+#include <sqlite3.h>
+
+void test2() {
+	sqlite3 *db;
+	int rc = sqlite3_open("./test.db", &db);
+	if( rc ){
+		printf("Can't open database: %s\n", sqlite3_errmsg(db));
+		sqlite3_close(db);
+		exit(1);
+	}
+
+	SqlHelper *helper = new SqlHelper();
+
+	list<shared_ptr<SqlValue>> scheme;
+
+	scheme.push_front(shared_ptr<SqlValue>(new SqlString("olic", "TEXT")));
+	scheme.push_front(shared_ptr<SqlValue>(new SqlString("jj", "BLOB")));
+
+	helper->createTbl(db, string("tbl"), scheme);
+
+	delete helper;
+	sqlite3_close(db);
+}
+
 int main(int argc, char **argv) {
 	DekdReqCmdListener *reqCl = new DekdReqCmdListener();
 	DekdCtlCmdListener *ctlCl = new DekdCtlCmdListener();
 	char *sock_path;
 
 	if(argc == 1) {
-		test1();
+		//test1();
+		test2();
 		exit(1);
 	}
 

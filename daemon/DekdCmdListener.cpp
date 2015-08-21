@@ -68,6 +68,7 @@ int DekdReqCmdListener::EncCmd::runCommand(SocketClient *c,
 			return -1;
 		}
 
+		shared_ptr<Item> item(new Item(tmp, len));
 		//mKeyCrypto.encrypt(new Item(tmp, len));
 	}
 
