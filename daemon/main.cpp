@@ -76,23 +76,43 @@ void test2() {
 	SqlHelper *helper = new SqlHelper();
 
 	list<shared_ptr<SqlValue>> scheme;
-	scheme.push_front(shared_ptr<SqlValue>(new SqlString("name", "TEXT")));
-	scheme.push_front(shared_ptr<SqlValue>(new SqlString("age", "INT")));
-	scheme.push_front(shared_ptr<SqlValue>(new SqlString("pic", "BLOB")));
+	scheme.push_back(shared_ptr<SqlValue>(new SqlString("name", "TEXT")));
+	scheme.push_back(shared_ptr<SqlValue>(new SqlString("age", "INT")));
+	scheme.push_back(shared_ptr<SqlValue>(new SqlString("pic", "BLOB")));
 
 	helper->createTbl(db, string("tbl"), scheme);
 
 	list<shared_ptr<SqlValue>> rec;
-	rec.push_front(shared_ptr<SqlValue>(new SqlString("name", "olic")));
-	rec.push_front(shared_ptr<SqlValue>(new SqlInteger("age", 33)));
-	rec.push_front(shared_ptr<SqlValue>(new SqlBlob("pic", "N/A", 3)));
+	rec.push_back(shared_ptr<SqlValue>(new SqlString("name", "olic")));
+	rec.push_back(shared_ptr<SqlValue>(new SqlInteger("age", 33)));
+	rec.push_back(shared_ptr<SqlValue>(new SqlBlob("pic", "N/A", 3)));
 	helper->insertRec(db, string("tbl"), rec);
 
 	rec.clear();
-	rec.push_front(shared_ptr<SqlValue>(new SqlString("name", "jiji")));
-	rec.push_front(shared_ptr<SqlValue>(new SqlInteger("age", 32)));
+	rec.push_back(shared_ptr<SqlValue>(new SqlString("name", "jiji")));
+	rec.push_back(shared_ptr<SqlValue>(new SqlInteger("age", 32)));
 	//rec.push_front(shared_ptr<SqlValue>(new SqlBlob("pic", "N/A", 3)));
 	helper->insertRec(db, string("tbl"), rec);
+
+	list<shared_ptr<SqlValue>> where;
+	where.push_back(shared_ptr<SqlValue>(new SqlString("name", "jiji")));
+	list<shared_ptr<SqlValue>> resultRec = helper->selectRec(db, string("tbl"), where);
+
+	string result = "RESULT : ";
+	for (list<shared_ptr<SqlValue>>::iterator it = resultRec.begin();
+			it != resultRec.end(); it++) {
+		int type = (*it)->getType();
+		if(type == SQL_TEXT) {
+			shared_ptr<SqlString> value = dynamic_pointer_cast<SqlString>(*it);
+			result += value->getData() + " ";
+		} else if(type == SQL_INT) {
+			shared_ptr<SqlInteger> value = dynamic_pointer_cast<SqlInteger>(*it);
+
+			result += std::to_string(value->getData()) + " ";
+		}
+	}
+
+	printf("%s\n", result.c_str());
 
 	delete helper;
 	sqlite3_close(db);

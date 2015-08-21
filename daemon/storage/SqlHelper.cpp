@@ -30,7 +30,8 @@ bool SqlHelper::createTbl(sqlite3 *db,
 
 	sql = "CREATE TABLE " + tbl + "(";
 
-	for (list<shared_ptr<SqlValue>>::iterator it = values.begin(); it != values.end(); it++) {
+	for (list<shared_ptr<SqlValue>>::iterator it = values.begin();
+			it != values.end(); it++) {
 		shared_ptr<SqlValue>value = *it;
 		int type = value->getType();
 		if(distance(values.begin(), it) != 0) sql += ", ";
@@ -60,7 +61,6 @@ bool SqlHelper::insertRec(sqlite3 *db,
 		string tbl, list<shared_ptr<SqlValue>> values) {
 	sqlite3_stmt *stmt;
 	int rc;
-	char *zErrMsg = 0;
 	string sql;
 
 	int size = values.size();
@@ -74,11 +74,8 @@ bool SqlHelper::insertRec(sqlite3 *db,
 
 	for (list<shared_ptr<SqlValue>>::iterator it = values.begin();
 			it != values.end(); it++) {
-		shared_ptr<SqlValue>value = *it;
 		if(distance(values.begin(), it) != 0) sql += ",";
-
-		shared_ptr<SqlString> v = dynamic_pointer_cast<SqlString> (value);
-		sql += v->getKey();
+		sql += (*it)->getKey();
 	}
 
 	sql += ") VAlUES (";
@@ -103,14 +100,12 @@ bool SqlHelper::insertRec(sqlite3 *db,
 
 		for (list<shared_ptr<SqlValue>>::iterator it = values.begin();
 				it != values.end(); it++) {
-			shared_ptr<SqlValue>value = *it;
+			int type = (*it)->getType();
 			int idx = distance(values.begin(), it);
-			int type = value->getType();
 
 			if(type == SQL_BLOB) {
 				shared_ptr<SqlBlob> v =
-						dynamic_pointer_cast<SqlBlob> (value);
-				int len;
+						dynamic_pointer_cast<SqlBlob> (*it);
 				rc = sqlite3_bind_blob(stmt, idx+1,
 						(const void *)v->getData(), v->getLen(), SQLITE_STATIC);
 				if(rc != SQLITE_OK)
@@ -118,14 +113,14 @@ bool SqlHelper::insertRec(sqlite3 *db,
 							tbl.c_str(), idx, rc, sqlite3_errmsg(db));
 			} else if(type == SQL_INT) {
 				shared_ptr<SqlInteger> v =
-						dynamic_pointer_cast<SqlInteger> (value);
+						dynamic_pointer_cast<SqlInteger> (*it);
 				rc = sqlite3_bind_int(stmt, idx+1, v->getData());
 				if(rc != SQLITE_OK)
 					printf("Failed to insert into %s col:%d, rc:%d (%s)\n",
 							tbl.c_str(), idx, rc, sqlite3_errmsg(db));
 			} else if(type == SQL_TEXT) {
 				shared_ptr<SqlString> v =
-						dynamic_pointer_cast<SqlString> (value);
+						dynamic_pointer_cast<SqlString> (*it);
 				rc = sqlite3_bind_text(stmt, idx+1,
 						v->getData().c_str(), -1, SQLITE_STATIC);
 				if(rc != SQLITE_OK)
@@ -156,9 +151,77 @@ bool SqlHelper::insertRec(sqlite3 *db,
 	return 0;
 }
 
-string SqlHelper::buildSelectQuery(sqlite3 *db,
+list<shared_ptr<SqlValue>> SqlHelper::selectRec(sqlite3 *db,
 		string tbl, list<shared_ptr<SqlValue>> where) {
-	return NULL;
+	string sql;
+	list<shared_ptr<SqlValue>> null;
+
+	sql = "SELECT * from " + tbl + " where ";
+	for (list<shared_ptr<SqlValue>>::iterator it = where.begin();
+			it != where.end(); it++) {
+		if((*it)->getType() == SQL_TEXT) {
+			shared_ptr<SqlString> value = dynamic_pointer_cast<SqlString>(*it);
+			if(distance(where.begin(), it) != 0) sql += "and";
+
+			sql += value->getKey() + "=\"" + value->getData() + "\"";
+		}
+	}
+
+	sqlite3_stmt *stmt;
+	int rc = sqlite3_prepare_v2(db, sql.c_str(), sql.length() + 1, &stmt, NULL);
+	if( rc!=SQLITE_OK ){
+		printf("Failed to prepare(%s) sql : %s\n",
+				sqlite3_errmsg(db), sql.c_str());
+		return null;
+	}
+
+	list<shared_ptr<SqlValue>> result;
+	while (1) {
+		int s;
+
+		s = sqlite3_step (stmt);
+		if (s == SQLITE_ROW) {
+			const char *tmp;
+			int colCnt = sqlite3_column_count(stmt);
+
+			for(int i=0; i<colCnt ; i++) {
+		          switch (sqlite3_column_type(stmt, i)) {
+		            case SQLITE_INTEGER:
+//		            	printf("integer value[%d] : name[%s] val[%d]\n", i,
+//		            			sqlite3_column_origin_name(stmt, i),
+//		            			sqlite3_column_int(stmt, i));
+		            	result.push_back(shared_ptr<SqlInteger>(
+		            			new SqlInteger(
+		            					sqlite3_column_origin_name(stmt, i),
+				            			sqlite3_column_int(stmt, i)
+		            					)));
+		            	break;
+		            case SQLITE_TEXT:
+//		            	printf("text value[%d] : name[%s] val[%s]\n", i,
+//		            			sqlite3_column_origin_name(stmt, i),
+//		            			sqlite3_column_text(stmt, i));
+		            	result.push_back(shared_ptr<SqlString>(
+		            			new SqlString(
+		            					sqlite3_column_origin_name(stmt, i),
+		            					(const char *)sqlite3_column_text(stmt, i)
+		            					)));
+		            	break;
+		            case SQLITE_BLOB:
+		            	/*Write to a file, dynamic memory ...*/
+		            	break;
+		          }
+			}
+		} else if (s == SQLITE_DONE)
+			break;
+		else {
+			printf("Failed.\n");
+			sqlite3_finalize(stmt);
+			return null;
+		}
+	}
+
+	sqlite3_finalize(stmt);
+	return result;
 }
 
 bool SqlHelper::deleteRec(sqlite3 *db,

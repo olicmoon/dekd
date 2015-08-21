@@ -36,7 +36,7 @@ public:
 			string tbl, list<shared_ptr<SqlValue>> values);
 	bool insertRec(sqlite3 *db,
 			string tbl, list<shared_ptr<SqlValue>> values);
-	string buildSelectQuery(sqlite3 *db,
+	list<shared_ptr<SqlValue>> selectRec(sqlite3 *db,
 			string tbl, list<shared_ptr<SqlValue>> where);
 	bool deleteRec(sqlite3 *db,
 			string tbl, list<shared_ptr<SqlValue>> where);
