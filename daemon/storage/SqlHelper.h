@@ -17,6 +17,8 @@
 #include <string>
 
 using namespace std;
+using std::shared_ptr;
+using std::dynamic_pointer_cast;
 
 #define SQL_MAX 4096
 #define SQL_BLOB 0
@@ -116,11 +118,14 @@ public:
 class SqlBlob : public SqlValue {
 public:
 	SqlBlob(string key, char *value, int len)
-	: SqlBlob(key, value, len) { }
+	: SqlValue(key, value, len) { }
 
-	char *getData(int *len) {
-		*len = blobLen;
+	char *getData() {
 		return this->blobValue;
+	}
+
+	int getLen() {
+		return blobLen;
 	}
 };
 #endif /* SQLHELPER_H_ */

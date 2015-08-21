@@ -76,11 +76,23 @@ void test2() {
 	SqlHelper *helper = new SqlHelper();
 
 	list<shared_ptr<SqlValue>> scheme;
-
-	scheme.push_front(shared_ptr<SqlValue>(new SqlString("olic", "TEXT")));
-	scheme.push_front(shared_ptr<SqlValue>(new SqlString("jj", "BLOB")));
+	scheme.push_front(shared_ptr<SqlValue>(new SqlString("name", "TEXT")));
+	scheme.push_front(shared_ptr<SqlValue>(new SqlString("age", "INT")));
+	scheme.push_front(shared_ptr<SqlValue>(new SqlString("pic", "BLOB")));
 
 	helper->createTbl(db, string("tbl"), scheme);
+
+	list<shared_ptr<SqlValue>> rec;
+	rec.push_front(shared_ptr<SqlValue>(new SqlString("name", "olic")));
+	rec.push_front(shared_ptr<SqlValue>(new SqlInteger("age", 33)));
+	rec.push_front(shared_ptr<SqlValue>(new SqlBlob("pic", "N/A", 3)));
+	helper->insertRec(db, string("tbl"), rec);
+
+	rec.clear();
+	rec.push_front(shared_ptr<SqlValue>(new SqlString("name", "jiji")));
+	rec.push_front(shared_ptr<SqlValue>(new SqlInteger("age", 32)));
+	//rec.push_front(shared_ptr<SqlValue>(new SqlBlob("pic", "N/A", 3)));
+	helper->insertRec(db, string("tbl"), rec);
 
 	delete helper;
 	sqlite3_close(db);
