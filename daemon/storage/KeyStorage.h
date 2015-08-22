@@ -26,11 +26,11 @@ protected:
 
 #define KEK_TBL_NAME "KEK"
 
-#define KEK_TBL_COL_ALIAS "ALIAS"
-#define KEK_TBL_COL_KEK_NAME "KEK_NAME"
-#define KEK_TBL_COL_ENCRYPTED_BY "ENCRYPTED_BY"
-#define KEK_TBL_COL_KEY "KEY"
-#define KEK_TBL_COL_KEY_AUTH_TAG "KEK_AUTH_TAG"
+#define KEK_COL_ALIAS "ALIAS"
+#define KEK_COL_KEK_NAME "KEK_NAME"
+#define KEK_COL_ENCRYPTED_BY "ENCRYPTED_BY"
+#define KEK_COL_EKEK "KEY"
+#define KEK_COL_AUTH_TAG "KEK_AUTH_TAG"
 
 class KekStorage : KeyStorage {
 public:
@@ -60,7 +60,6 @@ private:
 #define EMK_TBL_NAME "EMK"
 
 #define EMK_COL_ALIAS "ALIAS"
-#define EMK_COL_VERSION "VERSION"
 #define EMK_COL_EMK "EMK"
 #define EMK_COL_EMK_AUTH_TAG "EMK_AUTH_TAG"
 #define EMK_COL_EMKEK "EMKEK"
@@ -77,6 +76,7 @@ public:
 
 	bool create();
 	bool exist(const char *alias);
-	bool store(const char *alias, Key *kek, Token *tok);
+	bool store(const char *alias, SymKey *mk, Token *tok);
+	SymKey *retrieve(const char *alias, Token *tok);
 };
 #endif /* KEYSTORAGE_H_ */

@@ -179,6 +179,8 @@ void SerializedItem::init() {
 		goto out;
 	};
 
+	_salt = _pubKey;
+
 	terminator = strtok(NULL, s);
 	if(terminator == NULL || *terminator != '$') {
 		printf("failed to serialize::init() : %d\n", __LINE__);
@@ -257,6 +259,8 @@ Item *SerializedItem::deserialize() {
 		memcpy(eitem->auth_tag, tmp_auth_tag, 16);
 
 		Base64Decode(_salt, &tmp_salt, &len);
+		if(len != 16) printf("b64 output salt len is not 16 [%d]\n", len);
+		memcpy(eitem->salt, tmp_salt, 16);
 
 		result = (Item *) eitem;
 	}

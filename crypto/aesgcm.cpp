@@ -4,8 +4,16 @@
 #include <stdio.h>
 #include <openssl/bio.h>
 #include <openssl/evp.h>
+#include <openssl/rand.h>
 
 #include "Item.h"
+
+SymKey *generateSymKey() {
+	SymKey *key = new SymKey(32);
+	RAND_bytes(key->getData(), 32);
+
+	return key;
+}
 
 static const unsigned char gcm_aad[] = {
 		0x4d,0x23,0xc3,0xce,0xc3,0x34,0xb4,0x9b,0xdb,0x37,0x0c,0x43,

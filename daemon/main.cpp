@@ -119,10 +119,11 @@ void test_sql_helper() {
 }
 
 #define TEST_PWD "TEST PASSWORD"
+#define WRONG_PWD "WRONG PASSWORD"
 #define TEST_ALIAS "knox_100"
 
 void test_kek_storage() {
-	KekStorage *kekStorage = new KekStorage("./kek.db");
+	KekStorage *kekStorage = new KekStorage("./knox.db");
 
 	Password *pwd = new Password(TEST_PWD, strlen(TEST_PWD));
 	SymKey *symKey = new SymKey(TEST_STRING, strlen(TEST_STRING));
@@ -170,6 +171,32 @@ void test_kek_storage() {
 	delete kekStorage;
 }
 
+void test_mk_storage() {
+	MkStorage *mMkStorage = new MkStorage("./knox.db");
+
+	if(!mMkStorage->create()) {
+		printf("%s %d failed\n", __func__, __LINE__);
+	}
+
+	Password *pwd = new Password(TEST_PWD, strlen(TEST_PWD));
+	Password *wrongPwd = new Password(WRONG_PWD, strlen(WRONG_PWD));
+
+	SymKey *mk =  generateSymKey();
+
+	if(!mMkStorage->store(TEST_ALIAS, mk, pwd)) {
+		printf("%s %d failed\n", __func__, __LINE__); exit(1);
+	}
+	mk->dump("stored mk");
+
+	SymKey *mk2 = mMkStorage->retrieve(TEST_ALIAS, pwd);
+	if(mk2 == NULL) {
+		printf("wrong password\n");
+	} else {
+		mk2->dump("retrieved mk");
+	}
+}
+
+
 int main(int argc, char **argv) {
 	DekdReqCmdListener *reqCl = new DekdReqCmdListener();
 	DekdCtlCmdListener *ctlCl = new DekdCtlCmdListener();
@@ -179,6 +206,7 @@ int main(int argc, char **argv) {
 		//test1();
 		//test2();
 		test_kek_storage();
+		test_mk_storage();
 		exit(1);
 	}
 

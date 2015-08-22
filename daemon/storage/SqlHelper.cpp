@@ -45,7 +45,7 @@ bool SqlHelper::createTbl(sqlite3 *db,
 
 	sql += ")";
 
-	printf("sql : %s\n", sql.c_str());
+//	printf("sql : %s\n", sql.c_str());
 
 	int rc = sqlite3_exec(db, sql.c_str(), NULL, 0, &zErrMsg);
 	if( rc!=SQLITE_OK ){
@@ -87,7 +87,7 @@ bool SqlHelper::insertRec(sqlite3 *db,
 	}
 
 	sql += ")";
-	printf("sql : %s\n", sql.c_str());
+//	printf("sql : %s\n", sql.c_str());
 
 	do {
 		// INSERT INTO KEK(ALIAS,KEK_NAME,KEY,KEK_AUTH_TAG) VALUES (?, ?, ?, ?)

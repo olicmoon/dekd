@@ -19,6 +19,8 @@
 int Base64Encode(const unsigned char* buffer, size_t length, char** b64text);
 int Base64Decode(char* b64message, unsigned char** buffer, size_t* length);
 
+SymKey *generateSymKey();
+
 EncItem *aes_gcm_encrypt(Item *item, SymKey *key);
 Item *aes_gcm_decrypt(EncItem *eitem, SymKey *key);
 
@@ -27,5 +29,8 @@ EncItem *ecdh_encrypt(Item *item, PubKey *devDpub);
 Item *ecdh_decrypt(EncItem *dhpay, PrivKey *devDpri);
 
 void sha256(unsigned char *hash, const unsigned char *in, size_t len);
+
+EncItem *pbkdf_create_mkek(Password *pwd);
+SymKey *pbkdf_derive_mkek(EncItem *payload, Password *pwd);
 
 #endif /* NATIVE_CRYPTO_H_ */

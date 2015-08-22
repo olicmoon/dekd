@@ -17,7 +17,6 @@ public:
 	KeyCrypto();
 	virtual ~KeyCrypto();
 
-	static SymKey *generateSymKey();
 	EncItem *encrypt(Item *item, Key *key);
 	Item *decrypt(EncItem *eitem, Key *key);
 

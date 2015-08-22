@@ -8,8 +8,8 @@
 #ifndef ITEM_H_
 #define ITEM_H_
 
-#include <native_crypto.h>
 
+#include <stdio.h>
 #include <memory>
 #include <pthread.h>
 #include <string.h>
@@ -248,17 +248,6 @@ public:
 	virtual shared_ptr<SerializedItem> serialize();
 private:
 	PubKey *_pubKey;
-};
-
-class PbkdfPayload : public EncItem {
-public:
-	int version;
-	unsigned char salt[PBKDF2_SALT_LEN];
-
-	PbkdfPayload() : version(0) {	}
-	~PbkdfPayload() { }
-
-	virtual shared_ptr<SerializedItem> serialize();
 };
 
 typedef EncItem EncKey;

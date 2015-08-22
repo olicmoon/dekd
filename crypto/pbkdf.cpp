@@ -7,6 +7,7 @@
 
 #include <openssl/crypto.h>
 #include <openssl/rand.h>
+#include <openssl/evp.h>
 
 #include <Item.h>
 #include <native_crypto.h>
@@ -26,9 +27,7 @@ SymKey *pbkdf2(Password *pwd, const unsigned char* salt)
 }
 
 EncItem *pbkdf_create_mkek(Password *pwd) {
-	int rc;
-
-	SymKey *mkek =  KeyCrypto::generateSymKey();
+	SymKey *mkek =  generateSymKey();
 	unsigned char salt[PBKDF2_SALT_LEN];
 	RAND_bytes(salt, PBKDF2_SALT_LEN);
 
@@ -43,13 +42,12 @@ EncItem *pbkdf_create_mkek(Password *pwd) {
 	memcpy(emkek->salt, salt, PBKDF2_SALT_LEN);
 	memset(salt, 0, PBKDF2_SALT_LEN);
 
-	delete mkek, dKey;
+	delete mkek;
+	delete dKey;
 	return emkek;
 }
 
-SymKey *pbkdf_derive_mkek(Password *pwd, EncItem *payload) {
-	int rc;
-
+SymKey *pbkdf_derive_mkek(EncItem *payload, Password *pwd) {
 	SymKey *dKey = pbkdf2(pwd, payload->salt);
 	if(dKey == NULL) {
 		printf("failed to derive key\n");
@@ -57,7 +55,7 @@ SymKey *pbkdf_derive_mkek(Password *pwd, EncItem *payload) {
 	}
 
 	// decrypt mk with kek
-	SymKey *mkek = aes_gcm_decrypt(payload, dKey);
+	SymKey *mkek = (SymKey *)aes_gcm_decrypt(payload, dKey);
 
 	delete dKey;
 	return mkek;
