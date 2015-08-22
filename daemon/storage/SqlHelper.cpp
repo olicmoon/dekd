@@ -95,7 +95,7 @@ bool SqlHelper::insertRec(sqlite3 *db,
 		if( rc!=SQLITE_OK ){
 			printf("Failed to prepare(%s) sql : %s\n",
 					sqlite3_errmsg(db), sql.c_str());
-			return -1;
+			return false;
 		}
 
 		for (list<shared_ptr<SqlValue>>::iterator it = values.begin();
@@ -132,7 +132,7 @@ bool SqlHelper::insertRec(sqlite3 *db,
 		rc = sqlite3_step(stmt);
 		if( rc!=SQLITE_ROW && rc!=SQLITE_DONE ) {
 			printf("Failed  to insert : %s[rc:%d]\n", sqlite3_errmsg(db), rc);
-			return -1;
+			return false;
 		}
 
 		/* Finalize the virtual machine. This releases all memory and other
@@ -146,9 +146,9 @@ bool SqlHelper::insertRec(sqlite3 *db,
 	} while( rc==SQLITE_SCHEMA );
 
 	if(rc)
-		return -rc;
+		return false;
 
-	return 0;
+	return true;
 }
 
 list<shared_ptr<SqlValue>> SqlHelper::selectRec(sqlite3 *db,
@@ -161,7 +161,7 @@ list<shared_ptr<SqlValue>> SqlHelper::selectRec(sqlite3 *db,
 			it != where.end(); it++) {
 		if((*it)->getType() == SQL_TEXT) {
 			shared_ptr<SqlString> value = dynamic_pointer_cast<SqlString>(*it);
-			if(distance(where.begin(), it) != 0) sql += "and";
+			if(distance(where.begin(), it) != 0) sql += " and ";
 
 			sql += value->getKey() + "=\"" + value->getData() + "\"";
 		}

@@ -8,11 +8,6 @@
 #include <Item.h>
 #include <native_crypto.h>
 
-AbstractItem::AbstractItem()
-:_buffer(NULL), len(0), format(CRYPTO_ITEM_FMT_BIN) {
-
-}
-
 AbstractItem::AbstractItem(unsigned int len)
 :_buffer(NULL), len(len), format(CRYPTO_ITEM_FMT_BIN) {
 	if(this->len > 0) {
@@ -34,6 +29,7 @@ AbstractItem::AbstractItem(const char *buf, unsigned int len)
 
 AbstractItem::~AbstractItem() {
 	if(_buffer) {
+		printf("Item[%p] zero-out\n", this);
 		zeroOut();
 		free(_buffer);
 	}
@@ -86,7 +82,7 @@ void AbstractItem::dump(const char *buf,
 }
 
 shared_ptr<SerializedItem> AbstractItem::serialize() {
-	char *tmp = (char *)malloc(CRYPT_ITEM_MAX_LEN);
+	char *tmp;
 	char tempBuf[CRYPT_ITEM_MAX_LEN];
 
 	if(this->format == CRYPTO_ITEM_FMT_B64) {
@@ -96,11 +92,12 @@ shared_ptr<SerializedItem> AbstractItem::serialize() {
 
 	Base64Encode(this->getData(), this->len, &tmp);
 	snprintf(tempBuf, CRYPT_ITEM_MAX_LEN, "0 %s ? ? $", tmp);
+
 	shared_ptr<SerializedItem> serializedItem(
 			new SerializedItem(tempBuf));
 
 	memset(tempBuf, 0, CRYPT_ITEM_MAX_LEN);
-	memset(tmp, 0, CRYPT_ITEM_MAX_LEN);
+	memset(tmp, 0, strlen(tmp));
 	free(tmp);
 	return serializedItem;
 }
@@ -119,12 +116,9 @@ shared_ptr<SerializedItem> EncItem::serialize() {
 	Base64Encode(this->getData(), this->len, &tmp_eitem);
 	Base64Encode(this->auth_tag, 16, &tmp_eitem_tag);
 
-	if(alg == CRYPTO_ALG_AES) {
-		char *tmp_auth_tag = (char *)malloc(CRYPT_ITEM_MAX_LEN);
-		Base64Encode(this->auth_tag, 16, &tmp_auth_tag);
-
-		sprintf(tempBuf, "%d %s %s ? $", alg, tmp_eitem, tmp_auth_tag);
-	} else if(alg == CRYPTO_ALG_ECDH) {
+	if(alg == CryptAlg::AES) {
+		sprintf(tempBuf, "%d %s %s ? $", alg, tmp_eitem, tmp_eitem_tag);
+	} else if(alg == CryptAlg::ECDH) {
 		PubKey *pk = this->getPubKey();
 		if(pk == NULL) {
 			printf("%s[ECDH] :: invalid pub key\n", __func__);
@@ -151,6 +145,7 @@ void SerializedItem::init() {
 	const char s[2] = " ";
 	char *terminator;
 
+	printf("%s :: %s\n", __func__, _buffer);
 	char *tok_alg = strtok((char *)_buffer, s);
 	if(tok_alg == NULL)  {
 		printf("failed to deserialize %s\n", _buffer);
@@ -207,31 +202,29 @@ SerializedItem::SerializedItem(int alg, const char *data,
 	init();
 }
 
-shared_ptr<AbstractItem> SerializedItem::deserialize() {
-	shared_ptr<Item> result = NULL;
+Item *SerializedItem::deserialize() {
+	Item *result = NULL;
 
-	unsigned char *tmp;
-	unsigned char *tmp_auth_tag;
-	unsigned char *tmp_dpub;
+	unsigned char *tmp = NULL;
+	unsigned char *tmp_auth_tag = NULL;
+	unsigned char *tmp_dpub = NULL;
 	size_t len;
 
-	if(_alg == CRYPTO_ALG_PLAIN) {
+	if(_alg == CryptAlg::PLAIN) {
 		Base64Decode(_item, &tmp, &len);
 		Item *item = new Item((const char *)tmp, len);
-		memset(tmp, 0, CRYPT_ITEM_MAX_LEN);
+		memset(tmp, 0, len);
 
-		result = shared_ptr<Item> (item);
-	} else if(_alg == CRYPTO_ALG_AES) {
+		result = item;
+	} else if(_alg == CryptAlg::AES) {
 		Base64Decode(_item, &tmp, &len);
 		EncItem *eitem = new EncItem((const char *)tmp, len, _alg);
 
 		Base64Decode(_tag, &tmp_auth_tag, &len);
 		memcpy(eitem->auth_tag, tmp_auth_tag, 16);
 
-		result = shared_ptr<Item> (eitem);
-	} else if(_alg == CRYPTO_ALG_RSA) {
-
-	} else if(_alg == CRYPTO_ALG_ECDH) {
+		result = (Item *) eitem;
+	} else if(_alg == CryptAlg::ECDH) {
 
 		Base64Decode(_item, &tmp, &len);
 		EncItem *eitem = new EncItem((const char *)tmp, len, _alg);
@@ -241,9 +234,9 @@ shared_ptr<AbstractItem> SerializedItem::deserialize() {
 		memcpy(eitem->auth_tag, tmp_auth_tag, 16);
 
 		Base64Decode(_pubKey, &tmp_dpub, &len);
-		eitem->setPubKey(new PubKey((const char *)tmp_dpub, len, 2048, _alg));
+		eitem->setPubKey(new PubKey((const char *)tmp_dpub, len, _alg));
 
-		result = shared_ptr<Item> (eitem);
+		result = (Item *) eitem;
 	}
 
 	if(tmp != NULL) free(tmp);

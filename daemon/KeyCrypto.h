@@ -17,8 +17,6 @@ public:
 	KeyCrypto();
 	virtual ~KeyCrypto();
 
-	void generateKeyPair(int alg,
-			PubKey &pubKey, PrivKey &privKey);
 #if 0
 	bool encrypt(shared_ptr<Item> &item, shared_ptr<AbstractKey> &key);
 	bool decrypt(shared_ptr<Item> &item, shared_ptr<AbstractKey> &key);

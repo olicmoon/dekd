@@ -14,11 +14,7 @@
 
 using std::shared_ptr;
 using std::dynamic_pointer_cast;
-
-#define CRYPTO_ALG_PLAIN 0
-#define CRYPTO_ALG_AES 1
-#define CRYPTO_ALG_RSA 2
-#define CRYPTO_ALG_ECDH 3
+using std::string;
 
 #define CRYPTO_ITEM_FMT_BIN 0
 #define CRYPTO_ITEM_FMT_B64 1
@@ -36,7 +32,6 @@ public:
 
 	unsigned int len;
 	unsigned int format;
-	AbstractItem();
 	AbstractItem(unsigned int len);
 	AbstractItem(const char *buf, unsigned int len);
 	virtual ~AbstractItem();
@@ -53,13 +48,15 @@ public:
 	}
 };
 
+typedef AbstractItem Item;
+
 class SerializedItem : public AbstractItem {
 public:
 	SerializedItem(const char *buf);
 	SerializedItem(int alg, const char *data,
 			const char *tag, const char *pubKey);
 
-	shared_ptr<AbstractItem> deserialize();
+	Item *deserialize();
 
 	int getAlg() { return this->_alg; }
 	char *getItem() { return this->_item; }
@@ -83,47 +80,119 @@ private:
 	char *_pubKey;
 };
 
-typedef AbstractItem Item;
-
 typedef Item Password;
 typedef Item Token;
 
+class KeyType {
+public:
+	static const int SYM = 1;
+	static const int PUB = 2;
+	static const int PRI = 3;
+};
+
+class CryptAlg {
+public:
+	static const int PLAIN 	= 0;
+	static const int AES 		= 1;
+	static const int ECDH 		= 2;
+};
+
 class Key : public AbstractItem {
 public:
-	int bits;
 	int alg;
+	int type;
 
-	Key(const char *buf, int keyLen, int bits, int alg)
+	Key(const char *buf, int keyLen, int alg, int type)
 	: AbstractItem(buf, keyLen) {
-		this->bits = bits;
 		this->alg = alg;
+		this->type = type;
 	}
 
-	Key(int keyLen, int bits, int alg)
+	Key(int keyLen, int alg, int type)
 	: AbstractItem(keyLen) {
-		this->bits = bits;
 		this->alg = alg;
-	}
-
-	Key(int bits, int alg)
-	: AbstractItem() {
-		this->bits = bits;
-		this->alg = alg;
+		this->type = type;
 	}
 
 	~Key() { }
 };
 
-typedef Key SymKey;
-typedef Key PubKey;
-typedef Key PrivKey;
+class KeyName {
+public:
+	static const int SYM			= 10;
+	static const int ECDH_PUB		= 11;
+	static const int ECDH_PRI		= 12;
 
-static bool inline isAsymAlg(int alg) {
-	if((alg == CRYPTO_ALG_RSA) ||
-			(alg == CRYPTO_ALG_ECDH))
-		return true;
-	return false;
-}
+	static const char *getName(int alg, int type) {
+		if(alg == CryptAlg::AES)
+			return "SYM";
+
+		if(alg == CryptAlg::ECDH)
+			return (type == KeyType::PUB) ?
+					"ECDH_PUB" : "ECDH_PRI";
+
+		return NULL;
+	}
+
+	static const char *getName(Key *key) {
+		switch(getType(key)) {
+		case SYM:
+			return "SYM";
+		case ECDH_PUB:
+			return "ECDH_PUB";
+		case ECDH_PRI:
+			return "ECDH_PRI";
+		}
+
+		return NULL;
+	}
+
+private:
+	static int getType(Key *key) {
+		if(key->alg == CryptAlg::AES) {
+			return KeyName::SYM;
+		} else if(key->alg == CryptAlg::ECDH) {
+			return (key->type == KeyType::PUB) ?
+					KeyName::ECDH_PUB : KeyName::ECDH_PRI;
+		}
+
+		printf("unknown KekType : alg[%d] keyType[%d]\n", key->alg, key->type);
+		return -1;
+	}
+};
+
+class SymKey : public Key {
+public:
+	SymKey(const char *buf, int keyLen)
+	: Key(buf, keyLen, CryptAlg::AES, KeyType::SYM) {
+	}
+
+	SymKey(int keyLen)
+	: Key(keyLen, CryptAlg::AES, KeyType::SYM) {
+	}
+};
+
+class PubKey : public Key {
+public:
+	PubKey(const char *buf, int keyLen, int alg)
+	: Key(buf, keyLen, alg, KeyType::PUB) {
+	}
+
+	PubKey(int keyLen, int alg)
+	: Key(keyLen, alg, KeyType::PUB) {
+	}
+};
+
+class PrivKey : public Key {
+public:
+	PrivKey(const char *buf, int keyLen, int alg)
+	: Key(buf, keyLen, alg, KeyType::PRI) {
+	}
+
+	PrivKey(int keyLen, int alg)
+	: Key(keyLen, alg, KeyType::PRI) {
+	}
+};
 
 class EncItem : public AbstractItem {
 public:

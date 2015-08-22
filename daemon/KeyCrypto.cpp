@@ -16,24 +16,16 @@ KeyCrypto::KeyCrypto() {
 KeyCrypto::~KeyCrypto() {
 }
 
-void KeyCrypto::generateKeyPair(int alg,
-		PubKey &pubKey, PrivKey &privKey) {
-
-}
-
 EncItem *KeyCrypto::encrypt(Item *item, Key *key) {
 	int alg = key->alg;
 	EncItem *eitem = NULL;
 
 	switch(alg) {
-	case CRYPTO_ALG_AES:
-		eitem = aes_gcm_encrypt(item, key);
+	case CryptAlg::AES:
+		eitem = aes_gcm_encrypt(item, (SymKey *)key);
 		break;
-	case CRYPTO_ALG_RSA:
-		printf("RSA not yet supported");
-		break;
-	case CRYPTO_ALG_ECDH:
-		eitem = ecdh_encrypt(item, key);
+	case CryptAlg::ECDH:
+		eitem = ecdh_encrypt(item, (PubKey *)key);
 		break;
 	default:
 		printf("unknown alg<%d>\n", alg);
@@ -48,14 +40,11 @@ Item *KeyCrypto::decrypt(EncItem *eitem, Key *key) {
 	Item *item = NULL;
 
 	switch(alg) {
-	case CRYPTO_ALG_AES:
-		item = aes_gcm_decrypt(eitem, key);
+	case CryptAlg::AES:
+		item = aes_gcm_decrypt(eitem, (SymKey *)key);
 		break;
-	case CRYPTO_ALG_RSA:
-		printf("RSA not yet supported");
-		break;
-	case CRYPTO_ALG_ECDH:
-		item = ecdh_decrypt(eitem, key);
+	case CryptAlg::ECDH:
+		item = ecdh_decrypt(eitem, (PrivKey *)key);
 		break;
 	default:
 		printf("unknown alg<%d>\n", alg);

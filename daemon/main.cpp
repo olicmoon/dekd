@@ -17,14 +17,15 @@
 
 #include "KeyCrypto.h"
 #include "storage/SqlHelper.h"
+#include "storage/KeyStorage.h"
 
 #define TEST_STRING "he first known standardized use of the encoding"
-void test1() {
+void test_key_crypto() {
 	KeyCrypto *crypto = new KeyCrypto();
-	PubKey *devPub = new PubKey(CRYPT_ITEM_MAX_LEN, 2048, CRYPTO_ALG_ECDH);
-	PrivKey *devPri = new PrivKey(CRYPT_ITEM_MAX_LEN, 2048, CRYPTO_ALG_ECDH);
+	PubKey *devPub = new PubKey(CRYPT_ITEM_MAX_LEN, CryptAlg::ECDH);
+	PrivKey *devPri = new PrivKey(CRYPT_ITEM_MAX_LEN, CryptAlg::ECDH);
 
-	SymKey *key = new SymKey(TEST_STRING, strlen(TEST_STRING), 32*8, CRYPTO_ALG_AES);
+	SymKey *key = new SymKey(TEST_STRING, strlen(TEST_STRING));
 
 	if(ecdh_gen_keypair(devPub, devPri)) {
 		printf("ecdh_GenKeyPair() failed.\n");
@@ -44,12 +45,11 @@ void test1() {
 			new SerializedItem(sItem->getAlg(), sItem->getItem()
 					, sItem->getAuthTag(), sItem->getPubKey());
 
-	shared_ptr<EncItem> decodedItem =
-			dynamic_pointer_cast<EncItem>(sItem2->deserialize());
+	EncItem *decodedItem = (EncItem *) sItem2->deserialize();
 	decodedItem->dump("decodedItem");
 	decodedItem->getPubKey()->dump("decodedItem::pubKey");
 
-	Item *result = crypto->decrypt(decodedItem.get(), devPri);
+	Item *result = crypto->decrypt(decodedItem, devPri);
 	result->dump("result");
 
 	delete sItem2;
@@ -64,7 +64,7 @@ void test1() {
 
 #include <sqlite3.h>
 
-void test2() {
+void test_sql_helper() {
 	sqlite3 *db;
 	int rc = sqlite3_open("./test.db", &db);
 	if( rc ){
@@ -118,6 +118,58 @@ void test2() {
 	sqlite3_close(db);
 }
 
+#define TEST_PWD "TEST PASSWORD"
+#define TEST_ALIAS "knox_100"
+
+void test_kek_storage() {
+	KekStorage *kekStorage = new KekStorage("./kek.db");
+
+	Password *pwd = new Password(TEST_PWD, strlen(TEST_PWD));
+	SymKey *symKey = new SymKey(TEST_STRING, strlen(TEST_STRING));
+	PubKey *devPub = new PubKey(CRYPT_ITEM_MAX_LEN, CryptAlg::ECDH);
+	PrivKey *devPri = new PrivKey(CRYPT_ITEM_MAX_LEN, CryptAlg::ECDH);
+
+	if(!kekStorage->create()) {
+		printf("%s %d failed\n", __func__, __LINE__);
+	}
+
+	if(ecdh_gen_keypair(devPub, devPri)) {
+		printf("ecdh_GenKeyPair() failed.\n");
+		exit(1);
+	}
+
+	if(!kekStorage->store(TEST_ALIAS, symKey, pwd)) {
+		printf("%s %d failed\n", __func__, __LINE__); exit(1);
+	}
+	symKey->dump("stored symKey");
+
+	if(!kekStorage->store(TEST_ALIAS, devPub, pwd)) {
+		printf("%s %d failed\n", __func__, __LINE__); exit(1);
+	}
+	devPub->dump("stored devPub");
+
+	if(!kekStorage->store(TEST_ALIAS, devPri, pwd)) {
+		printf("%s %d failed\n", __func__, __LINE__); exit(1);
+	}
+	devPri->dump("stored devPri");
+
+	SymKey *symKey2 = kekStorage->retrieveSymKey(TEST_ALIAS, pwd);
+	symKey2->dump("retrieved symKey");
+	PubKey *devPub2 = kekStorage->retrievePubKey(TEST_ALIAS, CryptAlg::ECDH);
+	devPub2->dump("retrieved devPub");
+	PrivKey *devPri2 = kekStorage->retrievePrivKey(TEST_ALIAS, CryptAlg::ECDH, pwd);
+	devPri2->dump("retrieved devPri");
+
+	delete symKey2;
+	delete devPub2;
+	delete devPri2;
+	delete symKey;
+	delete devPub;
+	delete devPri;
+	delete pwd;
+	delete kekStorage;
+}
+
 int main(int argc, char **argv) {
 	DekdReqCmdListener *reqCl = new DekdReqCmdListener();
 	DekdCtlCmdListener *ctlCl = new DekdCtlCmdListener();
@@ -125,7 +177,8 @@ int main(int argc, char **argv) {
 
 	if(argc == 1) {
 		//test1();
-		test2();
+		//test2();
+		test_kek_storage();
 		exit(1);
 	}
 
