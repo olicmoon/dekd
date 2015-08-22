@@ -10,8 +10,11 @@
 
 #include "Item.h"
 
-//Item *base64e(Item *in);
-//Item *base64d(Item *in);
+#define PBKDF2_ITER_CNT 100000
+#define PBKDF2_KEY_MAX 128
+#define PBKDF2_KEY_LEN 32
+#define PBKDF2_SALT_LEN 16
+#define PBKDF2_GCM_TAG_LEN 16
 
 int Base64Encode(const unsigned char* buffer, size_t length, char** b64text);
 int Base64Decode(char* b64message, unsigned char** buffer, size_t* length);

@@ -16,6 +16,13 @@ KeyCrypto::KeyCrypto() {
 KeyCrypto::~KeyCrypto() {
 }
 
+static SymKey *KeyCrypto::generateSymKey() {
+	SymKey *key = new SymKey(32);
+	RAND_bytes(key->getData(), 32);
+
+	return key;
+}
+
 EncItem *KeyCrypto::encrypt(Item *item, Key *key) {
 	int alg = key->alg;
 	EncItem *eitem = NULL;

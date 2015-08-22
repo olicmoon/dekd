@@ -17,13 +17,9 @@ public:
 	KeyCrypto();
 	virtual ~KeyCrypto();
 
-#if 0
-	bool encrypt(shared_ptr<Item> &item, shared_ptr<AbstractKey> &key);
-	bool decrypt(shared_ptr<Item> &item, shared_ptr<AbstractKey> &key);
-#else
+	static SymKey *generateSymKey();
 	EncItem *encrypt(Item *item, Key *key);
 	Item *decrypt(EncItem *eitem, Key *key);
-#endif
 
 private:
 	PubKey *pubKey;

@@ -27,14 +27,6 @@ KeyStorage::~KeyStorage() {
 	sqlite3_close(this->mDb);
 }
 
-#define KEK_TBL_NAME "KEK"
-
-#define KEK_TBL_COL_ALIAS "ALIAS"
-#define KEK_TBL_COL_KEK_NAME "KEK_NAME"
-#define KEK_TBL_COL_ENCRYPTED_BY "ENCRYPTED_BY"
-#define KEK_TBL_COL_KEY "KEY"
-#define KEK_TBL_COL_KEY_AUTH_TAG "KEK_AUTH_TAG"
-
 bool KekStorage::create() {
 
 	list<shared_ptr<SqlValue>> scheme;
@@ -46,7 +38,6 @@ bool KekStorage::create() {
 
 	return mSqlHelper->createTbl(mDb, string(KEK_TBL_NAME), scheme);
 }
-
 
 bool KekStorage::exist(const char *alias, string kekName) {
 	list<shared_ptr<SqlValue>> where;
@@ -185,3 +176,54 @@ Key *KekStorage::retrieve(const char *alias, int alg, int type, Token *tok) {
 
 	return NULL;
 }
+
+bool MkStorage::create() {
+
+	list<shared_ptr<SqlValue>> scheme;
+	scheme.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_ALIAS, "TEXT")));
+	scheme.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_VERSION, "INTEGER")));
+	scheme.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_EMK, "TEXT")));
+	scheme.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_EMK_AUTH_TAG, "TEXT")));
+	scheme.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_EMKEK, "TEXT")));
+	scheme.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_EMKEK_AUTH_TAG, "TEXT")));
+	scheme.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_SALT, "TEXT")));
+
+	return mSqlHelper->createTbl(mDb, string(EMK_TBL_NAME), scheme);
+
+	return false;
+}
+
+bool MkStorage::exist(const char *alias) {
+	list<shared_ptr<SqlValue>> where;
+	where.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_ALIAS, alias)));
+
+	list<shared_ptr<SqlValue>> result =
+			mSqlHelper->selectRec(mDb, string(EMK_TBL_NAME), where);
+
+	int size = result.size();
+
+	printf("%s : result size %d\n", __func__, size);
+
+	if(size == 0)
+		return false;
+
+	return true;
+}
+
+
+bool MkStorage::store(const char *alias, Key *kek, Token *tok) {
+	if(exist(alias)) {
+		printf("Failed to store :: EMK already exists for %s\n",
+				alias);
+				return false;
+	}
+
+
+	return false;
+}
+
+
+
+
+
+

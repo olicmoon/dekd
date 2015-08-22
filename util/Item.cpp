@@ -106,6 +106,7 @@ shared_ptr<SerializedItem> EncItem::serialize() {
 	char *tmp_eitem = NULL;
 	char *tmp_eitem_tag = NULL;
 	char *tmp_dpub = NULL;
+	char *tmp_salt = NULL;
 
 	char tempBuf[CRYPT_ITEM_MAX_LEN];
 	if(this->format == CRYPTO_ITEM_FMT_B64) {
@@ -116,18 +117,25 @@ shared_ptr<SerializedItem> EncItem::serialize() {
 	Base64Encode(this->getData(), this->len, &tmp_eitem);
 	Base64Encode(this->auth_tag, 16, &tmp_eitem_tag);
 
-	if(alg == CryptAlg::AES) {
-		sprintf(tempBuf, "%d %s %s ? $", alg, tmp_eitem, tmp_eitem_tag);
-	} else if(alg == CryptAlg::ECDH) {
+	if(encBy == CryptAlg::AES) {
+		sprintf(tempBuf, "%d %s %s ? $", encBy, tmp_eitem, tmp_eitem_tag);
+	} else if(encBy == CryptAlg::ECDH) {
 		PubKey *pk = this->getPubKey();
 		if(pk == NULL) {
 			printf("%s[ECDH] :: invalid pub key\n", __func__);
 			return NULL;
 		}
 		Base64Encode(pk->getData(), pk->len, &tmp_dpub);
-		sprintf(tempBuf, "%d %s %s %s $", alg, tmp_eitem, tmp_eitem_tag, tmp_dpub);
+		sprintf(tempBuf, "%d %s %s %s $",
+				encBy, tmp_eitem, tmp_eitem_tag, tmp_dpub);
+	} else if(encBy == CryptAlg::PBKDF) {
+		Base64Encode(this->salt, 16, &tmp_salt);
+
+		sprintf(tempBuf, "%d %s %s %s $",
+				encBy, tmp_eitem, tmp_eitem_tag, tmp_salt);
 	} else
-		sprintf(tempBuf, "%d %s %s ? $", alg, tmp_eitem, tmp_eitem_tag);
+		sprintf(tempBuf, "%d %s %s ? $",
+				encBy, tmp_eitem, tmp_eitem_tag);
 
 	shared_ptr<SerializedItem> encodedItem(
 			new SerializedItem(tempBuf));
@@ -138,6 +146,7 @@ shared_ptr<SerializedItem> EncItem::serialize() {
 	if(tmp_eitem != NULL) free(tmp_eitem);
 	if(tmp_eitem_tag != NULL) free(tmp_eitem_tag);
 	if(tmp_dpub != NULL) free(tmp_dpub);
+	if(tmp_salt != NULL) free(tmp_salt);
 	return encodedItem;
 }
 
@@ -208,6 +217,7 @@ Item *SerializedItem::deserialize() {
 	unsigned char *tmp = NULL;
 	unsigned char *tmp_auth_tag = NULL;
 	unsigned char *tmp_dpub = NULL;
+	unsigned char *tmp_salt = NULL;
 	size_t len;
 
 	if(_alg == CryptAlg::PLAIN) {
@@ -237,10 +247,23 @@ Item *SerializedItem::deserialize() {
 		eitem->setPubKey(new PubKey((const char *)tmp_dpub, len, _alg));
 
 		result = (Item *) eitem;
+	} else if(_alg == CryptAlg::PBKDF) {
+
+		Base64Decode(_item, &tmp, &len);
+		EncItem *eitem = new EncItem((const char *)tmp, len, _alg);
+
+		Base64Decode(_tag, &tmp_auth_tag, &len);
+		if(len != 16) printf("b64 output auth len is not 16 [%d]\n", len);
+		memcpy(eitem->auth_tag, tmp_auth_tag, 16);
+
+		Base64Decode(_salt, &tmp_salt, &len);
+
+		result = (Item *) eitem;
 	}
 
 	if(tmp != NULL) free(tmp);
 	if(tmp_auth_tag != NULL) free(tmp_auth_tag);
+	if(tmp_dpub != NULL) free(tmp_dpub);
 	if(tmp_dpub != NULL) free(tmp_dpub);
 	return result;
 }

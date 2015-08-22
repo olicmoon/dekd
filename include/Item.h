@@ -8,6 +8,8 @@
 #ifndef ITEM_H_
 #define ITEM_H_
 
+#include <native_crypto.h>
+
 #include <memory>
 #include <pthread.h>
 #include <string.h>
@@ -62,6 +64,7 @@ public:
 	char *getItem() { return this->_item; }
 	char *getAuthTag() { return this->_tag; }
 	char *getPubKey() { return this->_pubKey; }
+	char *getSalt() { return this->_salt; }
 
 	void dump(const char *str) {
 		printf("serialized item[%s] \n", str);
@@ -69,6 +72,7 @@ public:
 		printf("item:     %s\n", this->_item);
 		printf("auth-tag: %s\n", this->_tag);
 		printf("pubKey:   %s\n", this->_pubKey);
+		printf("salt:   %s\n", this->_salt);
 	}
 
 private:
@@ -78,6 +82,7 @@ private:
 	char *_item;
 	char *_tag;
 	char *_pubKey;
+	char *_salt;
 };
 
 typedef Item Password;
@@ -95,6 +100,7 @@ public:
 	static const int PLAIN 	= 0;
 	static const int AES 		= 1;
 	static const int ECDH 		= 2;
+	static const int PBKDF		= 10;
 };
 
 class Key : public AbstractItem {
@@ -197,21 +203,25 @@ public:
 class EncItem : public AbstractItem {
 public:
 	unsigned char auth_tag[16];
-	int alg;
+	unsigned char salt[16];
+	int encBy;
 
-	EncItem(int keyLen, int alg)
-	: AbstractItem(keyLen), alg(alg), _pubKey(NULL) {
+	EncItem(int keyLen, int encBy)
+	: AbstractItem(keyLen), encBy(encBy), _pubKey(NULL) {
 		memset(auth_tag, 0, 16);
+		memset(salt, 0, 16);
 	}
 
-	EncItem(const char *buf, int keyLen, int alg)
-	: AbstractItem(buf, keyLen), alg(alg), _pubKey(NULL) {
+	EncItem(const char *buf, int keyLen, int encBy)
+	: AbstractItem(buf, keyLen), encBy(encBy), _pubKey(NULL) {
 		memset(auth_tag, 0, 16);
+		memset(salt, 0, 16);
 	}
 
-	EncItem(const char *buf, int keyLen, int alg, PubKey *pk)
-	: AbstractItem(buf, keyLen), alg(alg), _pubKey(pk){
+	EncItem(const char *buf, int keyLen, int encBy, PubKey *pk)
+	: AbstractItem(buf, keyLen), encBy(encBy), _pubKey(pk){
 		memset(auth_tag, 0, 16);
+		memset(salt, 0, 16);
 	}
 
 	void setPubKey(PubKey *pk) {
@@ -220,6 +230,7 @@ public:
 
 	~EncItem() {
 		memset(auth_tag, 0, 16);
+		memset(salt, 0, 16);
 		if(_pubKey != NULL)
 			delete _pubKey;
 	}
@@ -229,15 +240,27 @@ public:
 	}
 
 	/**
-	 * Type' 'Item.buffer' 'auth_tag
-	 * Type' 'Item.buffer' 'PubKey.buffer
+	 * PLAIN : [enc_by:0] [item] ? ? $
+	 * AES   : [enc_by:1] [eitem] [auth_tag] ? $
+	 * EDCH  : [enc_by:2] [eitem] [auth_tag] [pubkey] $
+	 * PBKDF : [enc_by:2] [eitem] [auth_tag] [salt] $
 	 */
 	virtual shared_ptr<SerializedItem> serialize();
 private:
 	PubKey *_pubKey;
 };
 
+class PbkdfPayload : public EncItem {
+public:
+	int version;
+	unsigned char salt[PBKDF2_SALT_LEN];
+
+	PbkdfPayload() : version(0) {	}
+	~PbkdfPayload() { }
+
+	virtual shared_ptr<SerializedItem> serialize();
+};
+
 typedef EncItem EncKey;
 
 #endif /* ITEM_H_ */
-#include <stdio.h>
