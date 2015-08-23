@@ -16,8 +16,8 @@
 #define PBKDF2_SALT_LEN 16
 #define PBKDF2_GCM_TAG_LEN 16
 
-int Base64Encode(const unsigned char* buffer, size_t length, char** b64text);
-int Base64Decode(char* b64message, unsigned char** buffer, size_t* length);
+bool Base64Encode(const unsigned char* buffer, size_t length, char** b64text);
+bool Base64Decode(char* b64message, unsigned char** buffer, size_t* length);
 
 SymKey *generateSymKey();
 

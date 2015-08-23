@@ -123,7 +123,7 @@ void test_sql_helper() {
 #define TEST_ALIAS "knox_100"
 
 void test_kek_storage() {
-	KekStorage *kekStorage = new KekStorage("./knox.db");
+	KekStorage *kekStorage = KekStorage::getInstance();
 
 	Password *pwd = new Password(TEST_PWD, strlen(TEST_PWD));
 	SymKey *symKey = new SymKey(TEST_STRING, strlen(TEST_STRING));
@@ -172,7 +172,7 @@ void test_kek_storage() {
 }
 
 void test_mk_storage() {
-	MkStorage *mMkStorage = new MkStorage("./knox.db");
+	MkStorage *mMkStorage = MkStorage::getInstance();
 
 	if(!mMkStorage->create()) {
 		printf("%s %d failed\n", __func__, __LINE__);
@@ -198,15 +198,16 @@ void test_mk_storage() {
 
 
 int main(int argc, char **argv) {
-	DekdReqCmdListener *reqCl = new DekdReqCmdListener();
-	DekdCtlCmdListener *ctlCl = new DekdCtlCmdListener();
+	KeyCrypto *kc = new KeyCrypto();
+	DekdReqCmdListener *reqCl = new DekdReqCmdListener(kc);
+	DekdCtlCmdListener *ctlCl = new DekdCtlCmdListener(kc);
 	char *sock_path;
 
 	if(argc == 1) {
 		//test1();
 		//test2();
-		test_kek_storage();
-		test_mk_storage();
+		//test_kek_storage();
+		//test_mk_storage();
 		exit(1);
 	}
 

@@ -1,4 +1,4 @@
-SUBDIRS = util daemon client
+SUBDIRS = util daemon client crypto
 .PHONY: subdirs $(SUBDIRS)
 
 CLEANDIRS = $(SUBDIRS:%=clean-%)

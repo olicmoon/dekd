@@ -30,13 +30,17 @@
 #include "DekdCommand.h"
 #include "KeyCrypto.h"
 
+#include "storage/KeyStorage.h"
+
+#define TEST_DB_PATH "./knox_dekd.db"
+
 class DekdReqCmdListener : public FrameworkListener {
 public:
-    DekdReqCmdListener();
+    DekdReqCmdListener(KeyCrypto *keyCrypto);
     virtual ~DekdReqCmdListener() {}
 
 private:
-    shared_ptr<KeyCrypto> mKeyCrypto;
+    KeyCrypto *keyCrypto;
     static void dumpArgs(int argc, char **argv, int argObscure);
 
     class EncCmd : public DekdCommand {
@@ -49,10 +53,12 @@ private:
 
 class DekdCtlCmdListener : public FrameworkListener {
 public:
-	DekdCtlCmdListener();
+	DekdCtlCmdListener(KeyCrypto *keyCrypto);
     virtual ~DekdCtlCmdListener() {}
 
-private:
+protected:
+    KeyCrypto *mKeyCrypto;
+
     static void dumpArgs(int argc, char **argv, int argObscure);
 
     class CtlCmd : public DekdCommand {

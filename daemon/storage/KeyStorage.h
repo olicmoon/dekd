@@ -32,13 +32,11 @@ protected:
 #define KEK_COL_EKEK "KEY"
 #define KEK_COL_AUTH_TAG "KEK_AUTH_TAG"
 
-class KekStorage : KeyStorage {
+class KekStorage : public KeyStorage {
 public:
-	KekStorage(const char *path)
-	: KeyStorage(path) {
-
+	static KekStorage *getInstance() {
+		return _instance;
 	}
-	virtual ~KekStorage() { }
 
 	bool create();
 	bool exist(const char *alias, string kekName);
@@ -55,6 +53,12 @@ public:
 	}
 private:
 	Key *retrieve(const char *alias, int alg, int type, Token *tok);
+
+	KekStorage(const char *path)
+	: KeyStorage(path) {
+	}
+
+	static KekStorage *_instance;
 };
 
 #define EMK_TBL_NAME "EMK"
@@ -66,17 +70,26 @@ private:
 #define EMK_COL_EMKEK_AUTH_TAG "EMKEK_AUTH_TAG"
 #define EMK_COL_SALT "SALT"
 
-class MkStorage : KeyStorage {
+class MkStorage : public KeyStorage {
 public:
-	MkStorage(const char *path)
-	: KeyStorage(path) {
-
+	static MkStorage *getInstance() {
+		return _instance;
 	}
+
 	virtual ~MkStorage() { }
 
 	bool create();
 	bool exist(const char *alias);
 	bool store(const char *alias, SymKey *mk, Token *tok);
 	SymKey *retrieve(const char *alias, Token *tok);
+
+private:
+	MkStorage(const char *path)
+	: KeyStorage(path) {
+
+	}
+
+	static MkStorage *_instance;
 };
+
 #endif /* KEYSTORAGE_H_ */

@@ -27,6 +27,8 @@ KeyStorage::~KeyStorage() {
 	sqlite3_close(this->mDb);
 }
 
+KekStorage *KekStorage::_instance = new KekStorage("./knox.db");
+
 bool KekStorage::create() {
 
 	list<shared_ptr<SqlValue>> scheme;
@@ -172,6 +174,8 @@ Key *KekStorage::retrieve(const char *alias, int alg, int type, Token *tok) {
 
 	return NULL;
 }
+
+MkStorage *MkStorage::_instance = new MkStorage("./knox.db");
 
 bool MkStorage::create() {
 
