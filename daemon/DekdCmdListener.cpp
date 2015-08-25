@@ -206,6 +206,7 @@ int DekdCtlCmdListener::CtlCmd::runCommand(SocketClient *c,
 	switch(cmdCode) {
 	case CommandCode::CommandBoot:
 	{
+		keyCryptoManager->createKeyCrypto(alias);
 		KeyCrypto *kc = keyCryptoManager->getKeyCrypto(alias);
 		if(kc == NULL) {
 			RESPONSE(c, ResponseCode::CommandNotFound, "not found");

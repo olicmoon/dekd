@@ -95,9 +95,9 @@ public:
 		case CryptAlg::PLAIN:
 			return std::to_string(_alg) + " ? ? ? $";
 		case CryptAlg::ECDH:
-			return std::to_string(_alg) + " " + _item + " " + _tag + " " + _pubKey + "$";
+			return std::to_string(_alg) + " " + _item + " " + _tag + " " + _pubKey + " $";
 		case CryptAlg::PBKDF:
-			return std::to_string(_alg) + " " + _item + " " + _tag + " " + _salt + "$";
+			return std::to_string(_alg) + " " + _item + " " + _tag + " " + _salt + " $";
 		case CryptAlg::AES:
 			return std::to_string(_alg) + " " + _item + " " + _tag + " ? $";
 		}
