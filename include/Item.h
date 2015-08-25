@@ -23,6 +23,21 @@ using std::string;
 
 #define CRYPT_ITEM_MAX_LEN 512
 
+class KeyType {
+public:
+	static const int SYM = 1;
+	static const int PUB = 2;
+	static const int PRI = 3;
+};
+
+class CryptAlg {
+public:
+	static const int PLAIN 	= 0;
+	static const int AES 		= 1;
+	static const int ECDH 		= 2;
+	static const int PBKDF		= 10;
+};
+
 class SerializedItem;
 
 class AbstractItem {
@@ -75,6 +90,21 @@ public:
 		printf("salt:   %s\n", this->_salt);
 	}
 
+	string toString() {
+		switch(_alg) {
+		case CryptAlg::PLAIN:
+			return std::to_string(_alg) + " ? ? ? $";
+		case CryptAlg::ECDH:
+			return std::to_string(_alg) + " " + _item + " " + _tag + " " + _pubKey + "$";
+		case CryptAlg::PBKDF:
+			return std::to_string(_alg) + " " + _item + " " + _tag + " " + _salt + "$";
+		case CryptAlg::AES:
+			return std::to_string(_alg) + " " + _item + " " + _tag + " ? $";
+		}
+
+		return "unknown alg " + _alg;
+	}
+
 private:
 	void init();
 
@@ -87,21 +117,6 @@ private:
 
 typedef Item Password;
 typedef Item Token;
-
-class KeyType {
-public:
-	static const int SYM = 1;
-	static const int PUB = 2;
-	static const int PRI = 3;
-};
-
-class CryptAlg {
-public:
-	static const int PLAIN 	= 0;
-	static const int AES 		= 1;
-	static const int ECDH 		= 2;
-	static const int PBKDF		= 10;
-};
 
 class Key : public AbstractItem {
 public:

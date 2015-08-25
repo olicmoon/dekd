@@ -70,7 +70,9 @@ int DekdReqCmdListener::EncCmd::runCommand(SocketClient *c,
 		return -1;
 	}
 
-	if(cmdCode == CommandCode::CommandEncrypt) {
+	switch(cmdCode) {
+	case CommandCode::CommandEncrypt:
+	{
 		if(argc < 4) {
 			RESPONSE(c, ResponseCode::CommandSyntaxError, "failed");
 			return -1;
@@ -93,7 +95,76 @@ int DekdReqCmdListener::EncCmd::runCommand(SocketClient *c,
 		shared_ptr<SerializedItem> sItem(eitem->serialize());
 
 		sItem->dump("encrypted item");
-		RESPONSE(c, ResponseCode::CommandOkay, "ping");
+		RESPONSE(c, ResponseCode::CommandOkay, sItem->toString().c_str());
+		break;
+	}
+	case CommandCode::CommandDecrypt:
+	{
+		if(argc < 5) {
+			RESPONSE(c, ResponseCode::CommandSyntaxError, "failed");
+			return -1;
+		}
+		int alg =  atoi(argv[3]);
+		char *item = argv[4];
+		char *tag = NULL;
+		char *pubKey = NULL;
+		char *salt = NULL;
+
+		shared_ptr<SerializedItem> sItem;
+		switch(alg) {
+		case CryptAlg::PLAIN:
+		{
+			RESPONSE(c, ResponseCode::CommandParameterError, "can't decrypt plain text");
+			return -1;
+		}
+		case CryptAlg::AES:
+		{
+			if(argc < 6) {
+				RESPONSE(c, ResponseCode::CommandSyntaxError, "failed");
+				return -1;
+			}
+			tag = argv[5];
+			sItem = shared_ptr<SerializedItem> (new SerializedItem(alg, item, tag, "?"));
+		}
+		case CryptAlg::ECDH:
+		{
+			if(argc < 7) {
+				RESPONSE(c, ResponseCode::CommandSyntaxError, "failed");
+				return -1;
+			}
+			tag = argv[5];
+			pubKey = argv[6];
+			sItem = shared_ptr<SerializedItem> (new SerializedItem(alg, item, tag, pubKey));
+			break;
+		}
+		case CryptAlg::PBKDF:
+		{
+			if(argc < 7) {
+				RESPONSE(c, ResponseCode::CommandSyntaxError, "failed");
+				return -1;
+			}
+
+			tag = argv[5];
+			salt = argv[6];
+			sItem = shared_ptr<SerializedItem> (new SerializedItem(alg, item, tag, salt));
+			break;
+		}
+		default:
+			RESPONSE(c, ResponseCode::CommandFailed, "unknown alg");
+			break;
+		}
+
+		shared_ptr<EncKey> ekey = shared_ptr<EncKey> ((EncKey *) sItem->deserialize());
+
+		Item *result = kc->decrypt(ekey.get());
+
+		if(result == NULL) {
+			RESPONSE(c, ResponseCode::CommandFailed, "failed");
+		} else {
+			RESPONSE(c, ResponseCode::CommandOkay, "decrypted");
+		}
+	}
+
 	}
 
 	return 0;

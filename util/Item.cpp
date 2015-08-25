@@ -268,6 +268,6 @@ Item *SerializedItem::deserialize() {
 	if(tmp != NULL) free(tmp);
 	if(tmp_auth_tag != NULL) free(tmp_auth_tag);
 	if(tmp_dpub != NULL) free(tmp_dpub);
-	if(tmp_dpub != NULL) free(tmp_dpub);
+	if(tmp_salt != NULL) free(tmp_salt);
 	return result;
 }
