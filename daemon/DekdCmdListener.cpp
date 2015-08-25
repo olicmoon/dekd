@@ -161,7 +161,11 @@ int DekdReqCmdListener::EncCmd::runCommand(SocketClient *c,
 		if(result == NULL) {
 			RESPONSE(c, ResponseCode::CommandFailed, "failed");
 		} else {
-			RESPONSE(c, ResponseCode::CommandOkay, "decrypted");
+			char *tmp;
+			Base64Encode(result->getData(), result->len, &tmp);
+			RESPONSE(c, ResponseCode::CommandOkay, tmp);
+
+			free(tmp);
 		}
 	}
 
