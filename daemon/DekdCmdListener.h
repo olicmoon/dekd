@@ -36,11 +36,10 @@
 
 class DekdReqCmdListener : public FrameworkListener {
 public:
-    DekdReqCmdListener(KeyCrypto *keyCrypto);
+    DekdReqCmdListener();
     virtual ~DekdReqCmdListener() {}
 
 private:
-    KeyCrypto *keyCrypto;
     static void dumpArgs(int argc, char **argv, int argObscure);
 
     class EncCmd : public DekdCommand {
@@ -53,12 +52,10 @@ private:
 
 class DekdCtlCmdListener : public FrameworkListener {
 public:
-	DekdCtlCmdListener(KeyCrypto *keyCrypto);
+	DekdCtlCmdListener();
     virtual ~DekdCtlCmdListener() {}
 
 protected:
-    KeyCrypto *mKeyCrypto;
-
     static void dumpArgs(int argc, char **argv, int argObscure);
 
     class CtlCmd : public DekdCommand {

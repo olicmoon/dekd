@@ -21,7 +21,7 @@
 
 #define TEST_STRING "he first known standardized use of the encoding"
 void test_key_crypto() {
-	KeyCrypto *crypto = new KeyCrypto();
+	KeyCrypto *crypto = new KeyCrypto("test");
 	PubKey *devPub = new PubKey(CRYPT_ITEM_MAX_LEN, CryptAlg::ECDH);
 	PrivKey *devPri = new PrivKey(CRYPT_ITEM_MAX_LEN, CryptAlg::ECDH);
 
@@ -32,7 +32,7 @@ void test_key_crypto() {
 		exit(1);
 	}
 
-	EncItem *eitem = crypto->encrypt((Item *)key, (Key *)devPub);
+	EncItem *eitem = crypto->encrypt((Item *)key);
 	eitem->dump("eitem");
 	eitem->getPubKey()->dump("eitem::pubKey");
 
@@ -49,7 +49,7 @@ void test_key_crypto() {
 	decodedItem->dump("decodedItem");
 	decodedItem->getPubKey()->dump("decodedItem::pubKey");
 
-	Item *result = crypto->decrypt(decodedItem, devPri);
+	Item *result = crypto->decrypt(decodedItem);
 	result->dump("result");
 
 	delete sItem2;
@@ -198,9 +198,8 @@ void test_mk_storage() {
 
 
 int main(int argc, char **argv) {
-	KeyCrypto *kc = new KeyCrypto();
-	DekdReqCmdListener *reqCl = new DekdReqCmdListener(kc);
-	DekdCtlCmdListener *ctlCl = new DekdCtlCmdListener(kc);
+	DekdReqCmdListener *reqCl = new DekdReqCmdListener();
+	DekdCtlCmdListener *ctlCl = new DekdCtlCmdListener();
 	char *sock_path;
 
 	if(argc == 1) {

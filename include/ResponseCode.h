@@ -13,10 +13,11 @@ public:
 	static const int CommandEncrypt	=	100;
 	static const int CommandDecrypt	=	101;
 
-	static const int CommandCreateProfile	=	200;
-	static const int CommandDeleteProfile	=	201;
-	static const int CommandLock	=	202;
-	static const int CommandUnlock	=	203;
+	static const int CommandBoot	=	200;
+	static const int CommandCreateProfile	=	201;
+	static const int CommandDeleteProfile	=	202;
+	static const int CommandLock	=	203;
+	static const int CommandUnlock	=	204;
 };
 
 class ResponseCode {
@@ -29,6 +30,7 @@ public:
     static const int CommandParameterError = 401;
     static const int CommandNoPermission = 402;
     static const int CommandSyntaxError = 403;
+    static const int CommandNotFound = 404;
 
 };
 

@@ -226,5 +226,28 @@ list<shared_ptr<SqlValue>> SqlHelper::selectRec(sqlite3 *db,
 
 bool SqlHelper::deleteRec(sqlite3 *db,
 		string tbl, list<shared_ptr<SqlValue>> where) {
-	return false;
+
+	int i, rc;
+	string sql;
+	char *zErrMsg = 0;
+
+	sql = "DELETE from " + tbl + " where ";
+	for (list<shared_ptr<SqlValue>>::iterator it = where.begin();
+			it != where.end(); it++) {
+		if((*it)->getType() == SQL_TEXT) {
+			shared_ptr<SqlString> value = dynamic_pointer_cast<SqlString>(*it);
+			if(distance(where.begin(), it) != 0) sql += " and ";
+
+			sql += value->getKey() + "=\"" + value->getData() + "\"";
+		}
+	}
+
+	rc = sqlite3_exec(db, sql.c_str(), NULL, 0, &zErrMsg);
+	if( rc!=SQLITE_OK ){
+		fprintf(stderr, "SQL error: %s\n", zErrMsg);
+		sqlite3_free(zErrMsg);
+		return false;
+	}
+
+	return true;
 }

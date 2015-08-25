@@ -41,11 +41,9 @@ void dump_args(int argc, char **argv) {
 	printf("\n\tCMD > %s \n", buffer);
 }
 
-DekdReqCmdListener::DekdReqCmdListener(KeyCrypto *kc) :
+DekdReqCmdListener::DekdReqCmdListener() :
 	FrameworkListener("dekd_req", true) {
 	registerCmd(new EncCmd());
-
-	keyCrypto = kc;
 }
 
 DekdReqCmdListener::EncCmd::EncCmd()
@@ -56,39 +54,54 @@ DekdReqCmdListener::EncCmd::EncCmd()
 
 int DekdReqCmdListener::EncCmd::runCommand(SocketClient *c,
 		int argc, char ** argv) {
-	int cmdCode = atoi(argv[1]);
 	dump_args(argc, argv);
+	if(argc < 3) {
+		printf("Usage : [req] [cmd-code] [alias] ...\n");
+		RESPONSE(c, ResponseCode::CommandSyntaxError, "lack of argc");
+		return -1;
+	}
+
+	int cmdCode = atoi(argv[1]);
+	char *alias = argv[2];
+
+	KeyCrypto *kc = KeyCryptoManager::getInstance()->getKeyCrypto(alias);
+	if(kc == NULL) {
+		RESPONSE(c, ResponseCode::CommandNotFound, "not found");
+		return -1;
+	}
 
 	if(cmdCode == CommandCode::CommandEncrypt) {
-		if(argc != 3) {
+		if(argc < 4) {
 			RESPONSE(c, ResponseCode::CommandSyntaxError, "failed");
 			return -1;
 		}
 
 		char *tmp;
 		size_t len;
-		if(Base64Decode(argv[2], (unsigned char **)&tmp, &len)) {
-			printf("base64 decode failed");
+		char *pItem = argv[3];
+		if(!Base64Decode(pItem, (unsigned char **)&tmp, &len)) {
+			printf("base64 decode failed pItem::%s \n", pItem);
 			RESPONSE(c, ResponseCode::CommandParameterError, "failed");
 			return -1;
 		}
 
 		shared_ptr<Item> item(new Item(tmp, len));
 
+		shared_ptr<EncItem> eitem(kc->encrypt(item.get()));
 		free(tmp);
-		//mKeyCrypto.encrypt(new Item(tmp, len));
+
+		shared_ptr<SerializedItem> sItem(eitem->serialize());
+
+		sItem->dump("encrypted item");
+		RESPONSE(c, ResponseCode::CommandOkay, "ping");
 	}
 
-	//BROADCAST(c, 55, "some event");
-	RESPONSE(c, ResponseCode::CommandOkay, "ping");
 	return 0;
 }
 
-DekdCtlCmdListener::DekdCtlCmdListener(KeyCrypto *kc) :
+DekdCtlCmdListener::DekdCtlCmdListener() :
 		FrameworkListener("dekd_ctl", true) {
 	registerCmd(new CtlCmd());
-
-	mKeyCrypto = kc;
 
 	MkStorage::getInstance()->create();
 	KekStorage::getInstance()->create();
@@ -102,78 +115,186 @@ DekdCtlCmdListener::CtlCmd::CtlCmd()
 int DekdCtlCmdListener::CtlCmd::runCommand(SocketClient *c,
 		int argc, char ** argv) {
 	dump_args(argc, argv);
+	if(argc < 3) {
+		printf("Usage : [ctl] [cmd-code] [alias] ...\n");
+		RESPONSE(c, ResponseCode::CommandSyntaxError, "lack of argc");
+		return -1;
+	}
 
 	int cmdCode = atoi(argv[1]);
 	char *alias = argv[2];
 
+	KeyCryptoManager *keyCryptoManager = KeyCryptoManager::getInstance();
+	MkStorage *mkStorage = MkStorage::getInstance();
+	KekStorage *kekStorage = KekStorage::getInstance();
+
 	switch(cmdCode) {
-		case CommandCode::CommandCreateProfile:
-		{
-			char *pwd = argv[3];
-
-			char *tmp;
-			size_t len;
-			bool rc = Base64Decode(pwd, (unsigned char **)&tmp, &len);
-			if(!rc || len <= 0) {
-				printf("base64 decode failed");
-				RESPONSE(c, ResponseCode::CommandParameterError, "failed");
-				return -1;
-			}
-
-			printf("Storing emk...\n");
-			shared_ptr<Token> tok = shared_ptr<Token>(new Token(tmp, len));
-			shared_ptr<SymKey> mk = shared_ptr<SymKey>(generateSymKey());
-			tok->dump("tok");
-			mk->dump("mk");
-			if(!MkStorage::getInstance()->store(alias, mk.get(), tok.get())) {
-				printf("base64 decode failed");
-				RESPONSE(c, ResponseCode::CommandFailed, "failed");
-				return -1;
-			}
-
-			printf("Storing emkek...\n");
-			shared_ptr<PubKey> devPub = shared_ptr<PubKey> (
-					new PubKey(CRYPT_ITEM_MAX_LEN, CryptAlg::ECDH));
-			shared_ptr<PrivKey> devPri = shared_ptr<PrivKey> (
-					new PrivKey(CRYPT_ITEM_MAX_LEN, CryptAlg::ECDH));
-			if(ecdh_gen_keypair(devPub.get(), devPri.get())) {
-				printf("ecdh_GenKeyPair() failed.\n");
-				exit(1);
-			}
-
-			shared_ptr<SymKey> symKey = shared_ptr<SymKey>(generateSymKey());
-
-			printf("Storing kek...\n");
-
-			if(!KekStorage::getInstance()->store(alias, symKey.get(), tok.get())) {
-				printf("%s %d failed\n", __func__, __LINE__); exit(1);
-			}
-			symKey->dump("stored symKey");
-
-			if(!KekStorage::getInstance()->store(alias, devPub.get(), tok.get())) {
-				printf("%s %d failed\n", __func__, __LINE__); exit(1);
-			}
-			devPub->dump("stored devPub");
-
-			if(!KekStorage::getInstance()->store(alias, devPri.get(), tok.get())) {
-				printf("%s %d failed\n", __func__, __LINE__); exit(1);
-			}
-			devPub->dump("stored devPri");
-
-			break;
+	case CommandCode::CommandBoot:
+	{
+		KeyCrypto *kc = keyCryptoManager->getKeyCrypto(alias);
+		if(kc == NULL) {
+			RESPONSE(c, ResponseCode::CommandNotFound, "not found");
+			return -1;
 		}
-		case CommandCode::CommandDeleteProfile:
-		{
-			break;
+
+		PubKey *pubKey =
+				kekStorage->retrievePubKey(alias, CryptAlg::ECDH);
+
+		kc->setPubKey(pubKey);
+		kc->dump();
+		RESPONSE(c, ResponseCode::CommandOkay, "booted");
+		break;
+	}
+	case CommandCode::CommandCreateProfile:
+	{
+		if(keyCryptoManager->exists(alias)) {
+			RESPONSE(c, ResponseCode::CommandFailed, "already exists");
+			return -1;
 		}
-		case CommandCode::CommandLock:
-		{
-			break;
+
+		if(argc < 4) {
+			printf("Usage : [ctl] [create] [alias] [pwd]\n");
+			RESPONSE(c, ResponseCode::CommandSyntaxError, "lack of argc");
+			return -1;
 		}
-		case CommandCode::CommandUnlock:
-		{
-			break;
+
+		keyCryptoManager->createKeyCrypto(alias);
+		KeyCrypto *kc = keyCryptoManager->getKeyCrypto(alias);
+		if(kc == NULL) {
+			RESPONSE(c, ResponseCode::CommandNotFound, "not found");
+			return -1;
 		}
+
+		char *pwd = argv[3];
+
+		char *tmp;
+		size_t len;
+		bool rc = Base64Decode(pwd, (unsigned char **)&tmp, &len);
+		if(!rc || len <= 0) {
+			printf("base64 decode failed");
+			RESPONSE(c, ResponseCode::CommandParameterError, "failed");
+			return -1;
+		}
+
+		printf("Storing emk...\n");
+		shared_ptr<Token> tok = shared_ptr<Token>(new Token(tmp, len));
+		shared_ptr<SymKey> mk = shared_ptr<SymKey>(generateSymKey());
+		tok->dump("tok");
+		mk->dump("mk");
+		if(!mkStorage->store(alias, mk.get(), tok.get())) {
+			printf("Failed to store EMK");
+			RESPONSE(c, ResponseCode::CommandFailed, "failed");
+			return -1;
+		}
+
+		printf("Storing emkek...\n");
+		PubKey *devPub = new PubKey(CRYPT_ITEM_MAX_LEN, CryptAlg::ECDH);
+		PrivKey *devPri = new PrivKey(CRYPT_ITEM_MAX_LEN, CryptAlg::ECDH);
+		if(ecdh_gen_keypair(devPub, devPri)) {
+			printf("ecdh_GenKeyPair() failed.\n");
+			exit(1);
+		}
+
+		SymKey *symKey = generateSymKey();
+
+		printf("Storing kek...\n");
+
+		if(!kekStorage->store(alias, symKey, mk.get())) {
+			printf("%s %d failed\n", __func__, __LINE__); exit(1);
+		}
+		symKey->dump("stored symKey");
+
+		if(!kekStorage->store(alias, devPub, mk.get())) {
+			printf("%s %d failed\n", __func__, __LINE__); exit(1);
+		}
+		devPub->dump("stored devPub");
+
+		if(!kekStorage->store(alias, devPri, mk.get())) {
+			printf("%s %d failed\n", __func__, __LINE__); exit(1);
+		}
+		devPub->dump("stored devPri");
+
+		kc->setPubKey(devPub);
+		kc->dump();
+		delete devPri;
+		delete symKey;
+
+		RESPONSE(c, ResponseCode::CommandOkay, "added");
+		break;
+	}
+	case CommandCode::CommandDeleteProfile:
+	{
+		keyCryptoManager->clrKeyCrypto(alias);
+		kekStorage->remove(alias);
+		mkStorage->remove(alias);
+		RESPONSE(c, ResponseCode::CommandOkay, "removed");
+		break;
+	}
+	case CommandCode::CommandLock:
+	{
+		KeyCrypto *kc = keyCryptoManager->getKeyCrypto(alias);
+		if(kc == NULL) {
+			RESPONSE(c, ResponseCode::CommandNotFound, "not found");
+			return -1;
+		}
+
+		kc->clrPrivKey();
+		kc->clrSymKey();
+		kc->dump();
+		RESPONSE(c, ResponseCode::CommandOkay, "locked");
+		break;
+	}
+	case CommandCode::CommandUnlock:
+	{
+		KeyCrypto *kc = keyCryptoManager->getKeyCrypto(alias);
+		if(kc == NULL) {
+			RESPONSE(c, ResponseCode::CommandNotFound, "not found");
+			return -1;
+		}
+
+		if(argc < 4) {
+			printf("Usage : [ctl] [unlock] [alias] [pwd]\n");
+			RESPONSE(c, ResponseCode::CommandSyntaxError, "lack of argc");
+			return -1;
+		}
+
+		char *pwd = argv[3];
+
+		char *tmp;
+		size_t len;
+		bool rc = Base64Decode(pwd, (unsigned char **)&tmp, &len);
+		if(!rc || len <= 0) {
+			printf("base64 decode failed");
+			RESPONSE(c, ResponseCode::CommandParameterError, "failed");
+			return -1;
+		}
+
+		printf("Storing emk...\n");
+		shared_ptr<Token> tok = shared_ptr<Token>(new Token(tmp, len));
+		shared_ptr<SymKey> mk = shared_ptr<SymKey>(
+				mkStorage->retrieve(alias, tok.get()));
+		tok->dump("tok");
+		if(mk == NULL) {
+			printf("Failed to retrieve MK");
+			RESPONSE(c, ResponseCode::CommandFailed, "failed");
+			return -1;
+		}
+		mk->dump("mk");
+
+		PrivKey *privKey =
+				kekStorage->retrievePrivKey(alias, CryptAlg::ECDH, mk.get());
+		SymKey *symKey =
+				kekStorage->retrieveSymKey(alias, mk.get());
+
+		kc->setPrivKey(privKey);
+		kc->setSymKey(symKey);
+		kc->dump();
+		RESPONSE(c, ResponseCode::CommandOkay, "unlocked");
+		break;
+	}
+	default:
+		printf("unknown command\n");
+		RESPONSE(c, ResponseCode::CommandNotFound, "unknown command");
 	}
 
 	return 0;

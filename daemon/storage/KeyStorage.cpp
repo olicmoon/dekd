@@ -118,6 +118,14 @@ bool KekStorage::store(const char *alias, Key *key, Token *tok){
 	return mSqlHelper->insertRec(mDb, KEK_TBL_NAME, rec);
 }
 
+bool KekStorage::remove(const char *alias) {
+	list<shared_ptr<SqlValue>> where;
+
+	where.push_back(shared_ptr<SqlString> (
+			new SqlString(KEK_COL_ALIAS, alias)));
+	return mSqlHelper->deleteRec(mDb, KEK_TBL_NAME, where);
+}
+
 Key *KekStorage::retrieve(const char *alias, int alg, int type, Token *tok) {
 	const char *kek_name = KeyName::getName(alg, type);
 	if(!exist(alias, kek_name)) {
@@ -209,7 +217,6 @@ bool MkStorage::exist(const char *alias) {
 	return true;
 }
 
-
 bool MkStorage::store(const char *alias, SymKey *mk, Token *tok) {
 	if(exist(alias)) {
 		printf("Failed to store :: EMK already exists for %s\n",
@@ -298,6 +305,10 @@ SymKey *MkStorage::retrieve(const char *alias, Token *tok) {
 	return mk;
 }
 
+bool MkStorage::remove(const char *alias) {
+	list<shared_ptr<SqlValue>> where;
+	where.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_ALIAS, alias)));
 
-
+	return mSqlHelper->deleteRec(mDb, string(EMK_TBL_NAME), where);
+}
 

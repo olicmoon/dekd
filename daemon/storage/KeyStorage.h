@@ -51,6 +51,9 @@ public:
 	PrivKey *retrievePrivKey(const char *alias, int alg, Token *tok) {
 		return (PrivKey *)retrieve(alias, alg, KeyType::PRI, tok);
 	}
+
+	bool remove(const char *alias);
+
 private:
 	Key *retrieve(const char *alias, int alg, int type, Token *tok);
 
@@ -82,6 +85,7 @@ public:
 	bool exist(const char *alias);
 	bool store(const char *alias, SymKey *mk, Token *tok);
 	SymKey *retrieve(const char *alias, Token *tok);
+	bool remove(const char *alias);
 
 private:
 	MkStorage(const char *path)
