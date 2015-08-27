@@ -93,7 +93,7 @@ public:
 	string toString() {
 		switch(_alg) {
 		case CryptAlg::PLAIN:
-			return std::to_string(_alg) + " ? ? ? $";
+			return std::to_string(_alg) + " " + _item + " ? ? $";
 		case CryptAlg::ECDH:
 			return std::to_string(_alg) + " " + _item + " " + _tag + " " + _pubKey + " $";
 		case CryptAlg::PBKDF:

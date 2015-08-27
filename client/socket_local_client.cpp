@@ -32,7 +32,7 @@
  * 
  * Used by AndroidSocketImpl
  */
-int socket_local_client_connect(int fd, const char *sock_path, const char *name)
+int socket_local_client_connect(int fd, const char *sock_path)
 {
     struct sockaddr_un addr;
     socklen_t alen;
@@ -41,7 +41,7 @@ int socket_local_client_connect(int fd, const char *sock_path, const char *name)
 
 	memset (&addr, 0, sizeof(addr));
 
-	namelen = strlen(name) + strlen(sock_path);
+	namelen = strlen(sock_path);
 	/* unix_path_max appears to be missing on linux */
 	if (namelen > sizeof(addr) 
 			- offsetof(struct sockaddr_un, sun_path) - 1) {
@@ -49,8 +49,6 @@ int socket_local_client_connect(int fd, const char *sock_path, const char *name)
 	}
 
 	strcpy(addr.sun_path, sock_path);
-	strcat(addr.sun_path, "/");
-	strcat(addr.sun_path, name);
 
 	addr.sun_family = AF_LOCAL;
 	alen = namelen + offsetof(struct sockaddr_un, sun_path) + 1;
@@ -72,14 +70,14 @@ error:
  * connect to peer named "name"
  * returns fd or -1 on error
  */
-int socket_local_client(const char *sock_path, const char *name, int type)
+int socket_local_client(const char *sock_path, int type)
 {
     int s;
 
     s = socket(AF_LOCAL, type, 0);
     if(s < 0) return -1;
 
-    if ( 0 > socket_local_client_connect(s, sock_path, name)) {
+    if ( 0 > socket_local_client_connect(s, sock_path)) {
         close(s);
         return -1;
     }

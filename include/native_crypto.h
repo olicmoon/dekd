@@ -8,7 +8,7 @@
 #ifndef NATIVE_CRYPTO_H_
 #define NATIVE_CRYPTO_H_
 
-#include "Item.h"
+#include <Item.h>
 
 #define PBKDF2_ITER_CNT 100000
 #define PBKDF2_KEY_MAX 128

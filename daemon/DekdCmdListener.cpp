@@ -73,14 +73,15 @@ int DekdReqCmdListener::EncCmd::runCommand(SocketClient *c,
 	switch(cmdCode) {
 	case CommandCode::CommandEncrypt:
 	{
-		if(argc < 4) {
+		if(argc < 5) {
 			RESPONSE(c, ResponseCode::CommandSyntaxError, "failed");
 			return -1;
 		}
 
 		char *tmp;
 		size_t len;
-		char *pItem = argv[3];
+		int alg =  atoi(argv[3]);
+		char *pItem = argv[4];
 		if(!Base64Decode(pItem, (unsigned char **)&tmp, &len)) {
 			printf("base64 decode failed pItem::%s \n", pItem);
 			RESPONSE(c, ResponseCode::CommandParameterError, "failed");
