@@ -46,8 +46,17 @@ int main(int argc, char **argv) {
 		DekClient *dc = new DekClient(argv[1]);
 
 		SymKey *key = generateSymKey();
+		key->dump("generated key");
 
-		dc->encrypt(argv[2], key);
+		EncKey *ekey = dc->encrypt(argv[2], key);
+
+		ekey->dump("ekey");
+		SymKey *dkey = dc->decrypt(argv[2], ekey);
+		dkey->dump("decrypted key");
+
+		delete key;
+		delete ekey;
+		delete dc;
 		exit(1);
 	}
 

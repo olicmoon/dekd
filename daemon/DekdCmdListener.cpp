@@ -162,11 +162,8 @@ int DekdReqCmdListener::EncCmd::runCommand(SocketClient *c,
 		if(result == NULL) {
 			RESPONSE(c, ResponseCode::CommandFailed, "failed");
 		} else {
-			char *tmp;
-			Base64Encode(result->getData(), result->len, &tmp);
-			RESPONSE(c, ResponseCode::CommandOkay, tmp);
-
-			free(tmp);
+			shared_ptr<SerializedItem> sResult(result->serialize());
+			RESPONSE(c, ResponseCode::CommandOkay, sResult->toString().c_str());
 		}
 	}
 
