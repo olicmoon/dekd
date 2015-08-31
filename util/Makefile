@@ -9,14 +9,15 @@ LDFLAGS = -shared -fPIC -g
 
 OBJS := \
 Item.o \
-FrameworkClient.o \
 NetlinkEvent.o \
 SocketClient.o \
 SocketUtil.o \
 FrameworkCommand.o \
 NetlinkListener.o \
 SocketListener.o \
-FrameworkListener.o
+FrameworkListener.o \
+DaemonConnector.o \
+DaemonEvent.o
 
 %.o: %.cpp
 	$(CC) $(CFLAGS) -c $< -o $@

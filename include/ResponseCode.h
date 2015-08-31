@@ -31,6 +31,8 @@ public:
     static const int CommandNoPermission = 402;
     static const int CommandSyntaxError = 403;
     static const int CommandNotFound = 404;
+    static const int CommandStateNotTransitted = 405;
+    static const int CommandStateLocked = 406;
 
 };
 

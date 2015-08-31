@@ -11,8 +11,8 @@
 #include <stdlib.h>
 #include <List.h>
 
-KeyStorage::KeyStorage(const char *path) {
-	int rc = sqlite3_open(path, &this->mDb);
+KeyStorage::KeyStorage(string path) {
+	int rc = sqlite3_open(path.c_str(), &this->mDb);
 	if( rc ){
 		printf("Can't open database: %s\n", sqlite3_errmsg(this->mDb));
 		sqlite3_close(this->mDb);
@@ -27,13 +27,14 @@ KeyStorage::~KeyStorage() {
 	sqlite3_close(this->mDb);
 }
 
-KekStorage *KekStorage::_instance = new KekStorage("./knox.db");
+KekStorage *KekStorage::_instance = NULL;
 
 bool KekStorage::create() {
 
 	list<shared_ptr<SqlValue>> scheme;
 	scheme.push_back(shared_ptr<SqlValue>(new SqlString(KEK_COL_ALIAS, "TEXT")));
 	scheme.push_back(shared_ptr<SqlValue>(new SqlString(KEK_COL_KEK_NAME, "TEXT")));
+	scheme.push_back(shared_ptr<SqlValue>(new SqlString(KEK_COL_KEK_TYPE, "INTEGER")));
 	scheme.push_back(shared_ptr<SqlValue>(new SqlString(KEK_COL_ENCRYPTED_BY, "INTEGER")));
 	scheme.push_back(shared_ptr<SqlValue>(new SqlString(KEK_COL_EKEK, "TEXT")));
 	scheme.push_back(shared_ptr<SqlValue>(new SqlString(KEK_COL_AUTH_TAG, "TEXT")));
@@ -41,12 +42,12 @@ bool KekStorage::create() {
 	return mSqlHelper->createTbl(mDb, string(KEK_TBL_NAME), scheme);
 }
 
-bool KekStorage::exist(const char *alias, string kekName) {
+bool KekStorage::exist(string alias, string kekName) {
 	list<shared_ptr<SqlValue>> where;
 	where.push_back(shared_ptr<SqlValue>(new SqlString(KEK_COL_ALIAS, alias)));
 	where.push_back(shared_ptr<SqlValue>(new SqlString(KEK_COL_KEK_NAME, kekName)));
 
-	list<shared_ptr<SqlValue>> result =
+	SqlRecord result =
 			mSqlHelper->selectRec(mDb, string(KEK_TBL_NAME), where);
 
 	int size = result.size();
@@ -59,14 +60,14 @@ bool KekStorage::exist(const char *alias, string kekName) {
 	return true;
 }
 
-bool KekStorage::store(const char *alias, Key *key, Token *tok){
+bool KekStorage::store(string alias, Key *key, Token *tok){
 	if(exist(alias, KeyName::getName(key))) {
 		printf("Failed to store :: key[%s] already exists for %s\n",
-				KeyName::getName(key), alias);
+				KeyName::getName(key), alias.c_str());
 				return false;
 	}
 
-	list<shared_ptr<SqlValue>> rec;
+	SqlRecord rec;
 	shared_ptr<SerializedItem> sItem;
 
 	if(key->type == KeyType::PUB) {
@@ -78,9 +79,11 @@ bool KekStorage::store(const char *alias, Key *key, Token *tok){
 		rec.push_back(shared_ptr<SqlString>(
 				new SqlString(KEK_COL_KEK_NAME, KeyName::getName(key))));
 		rec.push_back(shared_ptr<SqlInteger>(
+				new SqlInteger(KEK_COL_KEK_TYPE, KeyType::PUB)));
+		rec.push_back(shared_ptr<SqlInteger>(
 				new SqlInteger(KEK_COL_ENCRYPTED_BY, CryptAlg::PLAIN)));
 		rec.push_back(shared_ptr<SqlString>(
-				new SqlString(KEK_COL_EKEK, (const char *)sItem->getItem())));
+				new SqlString(KEK_COL_EKEK, (string )sItem->getItem())));
 	} else {
 		if(tok->len > 32) {
 			printf("Token length cannot be more than 32 bytes [%d]\n", tok->len);
@@ -104,21 +107,25 @@ bool KekStorage::store(const char *alias, Key *key, Token *tok){
 		rec.push_back(shared_ptr<SqlString>(
 				new SqlString(KEK_COL_KEK_NAME, KeyName::getName(key))));
 		rec.push_back(shared_ptr<SqlInteger>(
+				new SqlInteger(KEK_COL_KEK_TYPE, key->type)));
+		rec.push_back(shared_ptr<SqlInteger>(
 				new SqlInteger(KEK_COL_ENCRYPTED_BY, CryptAlg::AES)));
 		rec.push_back(shared_ptr<SqlString>(
-				new SqlString(KEK_COL_EKEK, (const char *)sItem->getItem())));
+				new SqlString(KEK_COL_EKEK, (string )sItem->getItem())));
 		rec.push_back(shared_ptr<SqlString>(
-				new SqlString(KEK_COL_AUTH_TAG, (const char *)sItem->getAuthTag())));
+				new SqlString(KEK_COL_AUTH_TAG, (string )sItem->getAuthTag())));
 
 		delete eKey;
 		delete symKey;
 	}
 
 	sItem->dump("KekStorage::store - serializedItem");
-	return mSqlHelper->insertRec(mDb, KEK_TBL_NAME, rec);
+	bool rc = mSqlHelper->insertRec(mDb, KEK_TBL_NAME, rec);
+
+	return rc;
 }
 
-bool KekStorage::remove(const char *alias) {
+bool KekStorage::remove(string alias) {
 	list<shared_ptr<SqlValue>> where;
 
 	where.push_back(shared_ptr<SqlString> (
@@ -126,11 +133,20 @@ bool KekStorage::remove(const char *alias) {
 	return mSqlHelper->deleteRec(mDb, KEK_TBL_NAME, where);
 }
 
-Key *KekStorage::retrieve(const char *alias, int alg, int type, Token *tok) {
-	const char *kek_name = KeyName::getName(alg, type);
+list<shared_ptr<SqlValue>> KekStorage::getAllKek() {
+	list<shared_ptr<SqlValue>> where;
+	printf("mSqlHelper [%p]\n", mSqlHelper.get());
+	SqlRecord foundRec =
+			mSqlHelper->selectRec(mDb, KEK_TBL_NAME, where);
+
+	return foundRec;
+}
+
+Key *KekStorage::retrieve(string alias, int alg, int type, Token *tok) {
+	string kek_name = KeyName::getName(alg, type);
 	if(!exist(alias, kek_name)) {
 		printf("Failed to retrieve :: key[%s] doesn't exist for %s\n",
-				kek_name, alias);
+				kek_name.c_str(), alias.c_str());
 				return NULL;
 	}
 
@@ -142,12 +158,12 @@ Key *KekStorage::retrieve(const char *alias, int alg, int type, Token *tok) {
 	where.push_back(shared_ptr<SqlString> (
 			new SqlString(KEK_COL_KEK_NAME, kek_name)));
 
-	list<shared_ptr<SqlValue>> foundRec = mSqlHelper->selectRec(mDb, KEK_TBL_NAME, where);
+	SqlRecord foundRec = mSqlHelper->selectRec(mDb, KEK_TBL_NAME, where);
 
 	string foundItem = "?";
 	string foundAuthTag = "?";
 	int encryptedBy = CryptAlg::PLAIN;
-	for (list<shared_ptr<SqlValue>>::iterator it = foundRec.begin();
+	for (SqlRecord::iterator it = foundRec.begin();
 			it != foundRec.end(); it++) {
 		string key = (*it)->getKey();
 		if(key.compare(KEK_COL_EKEK) == 0) {
@@ -183,7 +199,7 @@ Key *KekStorage::retrieve(const char *alias, int alg, int type, Token *tok) {
 	return NULL;
 }
 
-MkStorage *MkStorage::_instance = new MkStorage("./knox.db");
+MkStorage *MkStorage::_instance = NULL;
 
 bool MkStorage::create() {
 
@@ -200,7 +216,7 @@ bool MkStorage::create() {
 	return false;
 }
 
-bool MkStorage::exist(const char *alias) {
+bool MkStorage::exist(string alias) {
 	list<shared_ptr<SqlValue>> where;
 	where.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_ALIAS, alias)));
 
@@ -217,10 +233,10 @@ bool MkStorage::exist(const char *alias) {
 	return true;
 }
 
-bool MkStorage::store(const char *alias, SymKey *mk, Token *tok) {
+bool MkStorage::store(string alias, SymKey *mk, Token *tok) {
 	if(exist(alias)) {
 		printf("Failed to store :: EMK already exists for %s\n",
-				alias);
+				alias.c_str());
 				return false;
 	}
 
@@ -248,10 +264,10 @@ bool MkStorage::store(const char *alias, SymKey *mk, Token *tok) {
 	return mSqlHelper->insertRec(mDb, EMK_TBL_NAME, rec);
 }
 
-SymKey *MkStorage::retrieve(const char *alias, Token *tok) {
+SymKey *MkStorage::retrieve(string alias, Token *tok) {
 	if(!exist(alias)) {
 		printf("Failed to retrieve :: MK doesn't exist for %s\n",
-				alias);
+				alias.c_str());
 				return NULL;
 	}
 
@@ -305,7 +321,7 @@ SymKey *MkStorage::retrieve(const char *alias, Token *tok) {
 	return mk;
 }
 
-bool MkStorage::remove(const char *alias) {
+bool MkStorage::remove(string alias) {
 	list<shared_ptr<SqlValue>> where;
 	where.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_ALIAS, alias)));
 

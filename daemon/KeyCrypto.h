@@ -10,15 +10,37 @@
 
 #include <map>
 
-#include <List.h>
 #include <Item.h>
 #include <native_crypto.h>
 
-using std::map;
-using std::pair;
+using namespace std;
 
 class KeyCrypto {
+	class Action {
+	public:
+		Action() { }
+
+		static int getCode(int state, int event) {
+			return state | event;
+		}
+	};
+
+
+	enum State {
+		Uninitialized = 0x00000001,
+		Locked = 0x00000002,
+		Unlocked = 0x00000003
+	};
+
 public:
+	enum Event {
+		Boot = 0x00010000,
+		Unlock = 0x00020000,
+		Lock = 0x00030000,
+		Create = 0x00040000,
+		Remove = 0x00050000
+	};
+
 	KeyCrypto(string alias);
 	virtual ~KeyCrypto();
 
@@ -62,6 +84,14 @@ public:
 		this->_symKey = NULL;
 	}
 
+	bool transit(Event event);
+
+	bool isUnlocked() {
+		if(_state == State::Unlocked)
+			return true;
+		return false;
+	}
+
 	void dump() {
 		printf("KeyCrypto(%s)\n", _alias.c_str());
 
@@ -80,6 +110,10 @@ private:
 	PubKey *_pubKey;
 	PrivKey *_privKey;
 	SymKey *_symKey;
+
+	KeyCrypto::State _state;
+	KeyCrypto::State _oldState;
+	std::map<int, KeyCrypto::State> StateDiagram;
 };
 
 class KeyCryptoManager {
@@ -132,7 +166,7 @@ public:
 private:
 	map<string, KeyCrypto *> mKeyCryptoMap;
 
-	KeyCryptoManager() { }
+	KeyCryptoManager();
 	static KeyCryptoManager *_instance;
 };
 

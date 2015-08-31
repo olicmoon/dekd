@@ -58,12 +58,12 @@ bool SqlHelper::createTbl(sqlite3 *db,
 }
 
 bool SqlHelper::insertRec(sqlite3 *db,
-		string tbl, list<shared_ptr<SqlValue>> values) {
+		string tbl, SqlRecord record) {
 	sqlite3_stmt *stmt;
 	int rc;
 	string sql;
 
-	int size = values.size();
+	int size = record.size();
 
 	if(size == 0) {
 		printf("%s failed, empty column list\n", __func__);
@@ -72,17 +72,17 @@ bool SqlHelper::insertRec(sqlite3 *db,
 
 	sql = "INSERT INTO " + tbl + "(";
 
-	for (list<shared_ptr<SqlValue>>::iterator it = values.begin();
-			it != values.end(); it++) {
-		if(distance(values.begin(), it) != 0) sql += ",";
+	for (SqlRecord::iterator it = record.begin();
+			it != record.end(); it++) {
+		if(distance(record.begin(), it) != 0) sql += ",";
 		sql += (*it)->getKey();
 	}
 
 	sql += ") VAlUES (";
 
-	for (list<shared_ptr<SqlValue>>::iterator it = values.begin();
-			it != values.end(); it++) {
-		if(distance(values.begin(), it) != 0) sql += ",";
+	for (SqlRecord::iterator it = record.begin();
+			it != record.end(); it++) {
+		if(distance(record.begin(), it) != 0) sql += ",";
 		sql += "?";
 	}
 
@@ -98,10 +98,10 @@ bool SqlHelper::insertRec(sqlite3 *db,
 			return false;
 		}
 
-		for (list<shared_ptr<SqlValue>>::iterator it = values.begin();
-				it != values.end(); it++) {
+		for (SqlRecord::iterator it = record.begin();
+				it != record.end(); it++) {
 			int type = (*it)->getType();
-			int idx = distance(values.begin(), it);
+			int idx = distance(record.begin(), it);
 
 			if(type == SQL_BLOB) {
 				shared_ptr<SqlBlob> v =
@@ -151,19 +151,25 @@ bool SqlHelper::insertRec(sqlite3 *db,
 	return true;
 }
 
-list<shared_ptr<SqlValue>> SqlHelper::selectRec(sqlite3 *db,
+SqlRecord SqlHelper::selectRec(sqlite3 *db,
 		string tbl, list<shared_ptr<SqlValue>> where) {
 	string sql;
-	list<shared_ptr<SqlValue>> null;
+	SqlRecord nullRec;
 
-	sql = "SELECT * from " + tbl + " where ";
-	for (list<shared_ptr<SqlValue>>::iterator it = where.begin();
-			it != where.end(); it++) {
-		if((*it)->getType() == SQL_TEXT) {
-			shared_ptr<SqlString> value = dynamic_pointer_cast<SqlString>(*it);
-			if(distance(where.begin(), it) != 0) sql += " and ";
+	sql = "SELECT * from " + tbl;
 
-			sql += value->getKey() + "=\"" + value->getData() + "\"";
+	if(where.empty()) {
+		sql += ";";
+	} else {
+		sql += " where ";
+		for (list<shared_ptr<SqlValue>>::iterator it = where.begin();
+				it != where.end(); it++) {
+			if((*it)->getType() == SQL_TEXT) {
+				shared_ptr<SqlString> value = dynamic_pointer_cast<SqlString>(*it);
+				if(distance(where.begin(), it) != 0) sql += " and ";
+
+				sql += value->getKey() + "=\"" + value->getData() + "\"";
+			}
 		}
 	}
 
@@ -172,10 +178,10 @@ list<shared_ptr<SqlValue>> SqlHelper::selectRec(sqlite3 *db,
 	if( rc!=SQLITE_OK ){
 		printf("Failed to prepare(%s) sql : %s\n",
 				sqlite3_errmsg(db), sql.c_str());
-		return null;
+		return nullRec;
 	}
 
-	list<shared_ptr<SqlValue>> result;
+	SqlRecord resultRec;
 	while (1) {
 		int s;
 
@@ -190,7 +196,7 @@ list<shared_ptr<SqlValue>> SqlHelper::selectRec(sqlite3 *db,
 //		            	printf("integer value[%d] : name[%s] val[%d]\n", i,
 //		            			sqlite3_column_origin_name(stmt, i),
 //		            			sqlite3_column_int(stmt, i));
-		            	result.push_back(shared_ptr<SqlInteger>(
+		            	resultRec.push_back(shared_ptr<SqlInteger>(
 		            			new SqlInteger(
 		            					sqlite3_column_origin_name(stmt, i),
 				            			sqlite3_column_int(stmt, i)
@@ -200,7 +206,7 @@ list<shared_ptr<SqlValue>> SqlHelper::selectRec(sqlite3 *db,
 //		            	printf("text value[%d] : name[%s] val[%s]\n", i,
 //		            			sqlite3_column_origin_name(stmt, i),
 //		            			sqlite3_column_text(stmt, i));
-		            	result.push_back(shared_ptr<SqlString>(
+		            	resultRec.push_back(shared_ptr<SqlString>(
 		            			new SqlString(
 		            					sqlite3_column_origin_name(stmt, i),
 		            					(const char *)sqlite3_column_text(stmt, i)
@@ -216,12 +222,12 @@ list<shared_ptr<SqlValue>> SqlHelper::selectRec(sqlite3 *db,
 		else {
 			printf("Failed.\n");
 			sqlite3_finalize(stmt);
-			return null;
+			return nullRec;
 		}
 	}
 
 	sqlite3_finalize(stmt);
-	return result;
+	return resultRec;
 }
 
 bool SqlHelper::deleteRec(sqlite3 *db,

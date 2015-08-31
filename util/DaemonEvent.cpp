@@ -1,20 +1,11 @@
 /*
- * DaemonConnector.cpp
+ * DeamonEvent.cpp
  *
- *  Created on: Aug 28, 2015
+ *  Created on: Aug 29, 2015
  *      Author: olic
  */
 
-#include "DaemonConnector.h"
-
-DaemonConnector::DaemonConnector() {
-	// TODO Auto-generated constructor stub
-
-}
-
-DaemonConnector::~DaemonConnector() {
-	// TODO Auto-generated destructor stub
-}
+#include <DaemonEvent.h>
 
 DaemonEvent::DaemonEvent(int cmdNumber, int code, std::vector<std::string> message) {
 	this->cmdNumber = cmdNumber;
@@ -34,7 +25,7 @@ void DaemonEvent::dump(const char *msg) {
 shared_ptr<DaemonEvent> DaemonEvent::parseRawEvent(string rawEvent) {
 	vector<std::string> parsed;
 
-//	printf("%s :: %s\n", __func__, rawEvent.c_str());
+	printf("%s :: %s\n", __func__, rawEvent.c_str());
 	char deli = ' ';
     string::size_type lastPos = rawEvent.find_first_not_of(deli, 0);
     string::size_type pos     = rawEvent.find_first_of(deli, lastPos);

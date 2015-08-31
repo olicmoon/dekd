@@ -25,23 +25,6 @@ using std::dynamic_pointer_cast;
 #define SQL_TEXT 1
 #define SQL_INT 2
 
-class SqlValue;
-
-class SqlHelper {
-public:
-	SqlHelper();
-	virtual ~SqlHelper();
-
-	bool createTbl(sqlite3 *db,
-			string tbl, list<shared_ptr<SqlValue>> values);
-	bool insertRec(sqlite3 *db,
-			string tbl, list<shared_ptr<SqlValue>> values);
-	list<shared_ptr<SqlValue>> selectRec(sqlite3 *db,
-			string tbl, list<shared_ptr<SqlValue>> where);
-	bool deleteRec(sqlite3 *db,
-			string tbl, list<shared_ptr<SqlValue>> where);
-};
-
 class SqlValue {
 public:
 	string key;
@@ -95,6 +78,8 @@ private:
 	int type;
 };
 
+typedef list<shared_ptr<SqlValue>> SqlRecord;
+
 class SqlString : public SqlValue {
 public:
 	SqlString(string key, string value)
@@ -127,5 +112,20 @@ public:
 	int getLen() {
 		return blobLen;
 	}
+};
+
+class SqlHelper {
+public:
+	SqlHelper();
+	virtual ~SqlHelper();
+
+	bool createTbl(sqlite3 *db,
+			string tbl, list<shared_ptr<SqlValue>> values);
+	bool insertRec(sqlite3 *db,
+			string tbl, list<shared_ptr<SqlValue>> values);
+	SqlRecord selectRec(sqlite3 *db,
+			string tbl, list<shared_ptr<SqlValue>> where);
+	bool deleteRec(sqlite3 *db,
+			string tbl, list<shared_ptr<SqlValue>> where);
 };
 #endif /* SQLHELPER_H_ */

@@ -8,97 +8,39 @@
 
 #include <unistd.h>
 
-#include "DekClient.h"
-#include "DaemonConnector.h"
 #include <ResponseCode.h>
 
-DekClient::DekClient(string sockPath) {
-	_sockPath = sockPath;
-}
+#include "DekClient.h"
 
-int DekClient::connect() {
-	return socket_local_client(_sockPath.c_str(), SOCK_STREAM);
-}
-
-string DekClient::monitor(int sock) {
-	char *buffer = (char *)malloc(4096);
-
-	while(1) {
-		fd_set read_fds;
-		struct timeval to;
-		int rc = 0;
-
-		to.tv_sec = 10;
-		to.tv_usec = 0;
-
-		FD_ZERO(&read_fds);
-		FD_SET(sock, &read_fds);
-
-		if ((rc = select(sock +1, &read_fds, NULL, NULL, &to)) < 0) {
-			fprintf(stderr, "Error in select (%s)\n", strerror(errno));
-			free(buffer);
-			return NULL;
-		} else if (!rc) {
-			continue;
-			fprintf(stderr, "[TIMEOUT]\n");
-			return NULL;
-		} else if (FD_ISSET(sock, &read_fds)) {
-			memset(buffer, 0, 4096);
-			if ((rc = read(sock, buffer, 4096)) <= 0) {
-				if (rc == 0)
-					fprintf(stderr, "Lost connection - did it crash?\n");
-				else
-					fprintf(stderr, "Error reading data (%s)\n", strerror(errno));
-				free(buffer);
-
-				return NULL;
-			}
-
-			int offset = 0;
-			int i = 0;
-
-			for (i = 0; i < rc; i++) {
-				if (buffer[i] == '\0') {
-					int code;
-					char tmp[4];
-
-					strncpy(tmp, buffer + offset, 3);
-					tmp[3] = '\0';
-					code = atoi(tmp);
-
-					string resp = buffer + offset;
-					printf("%s\n", resp.c_str());
-
-					if (code >= 200 && code < 600) {
-						free(buffer);
-						return resp;
-					}
-
-					offset = i + 1;
-				}
-			}
-		}
-	}
-	free(buffer);
-	return NULL;
+DekClient::DekClient(string sockPath)
+:DaemonConnector(sockPath, SOCK_STREAM) {
 }
 
 EncKey *DekClient::encrypt(string alias, SymKey *key) {
-	shared_ptr<SerializedItem> sKey(key->serialize());
+	printf("DekClient::encrypt\n");
 
+	int sock = doConnect();
+	if(sock < 0) {
+		printf("Cannot connect\n");
+		return false;
+	}
+
+	shared_ptr<SerializedItem> sKey(key->serialize());
 	sKey->dump("DekClient::encrypt");
 
-	int sock = connect();
 	string cmd = "0 enc " + std::to_string(CommandCode::CommandEncrypt) + " "
 			+ alias + " " + sKey->toString();
 	printf("cmd :: %s\n", cmd.c_str());
 	write(sock, cmd.c_str(), cmd.size() + 1);
 
-	string resp = monitor(sock);
+	shared_ptr<DaemonEvent> event(monitor(sock));
 
-	printf("resp :: %s\n", resp.c_str());
-	shared_ptr<DaemonEvent> event(DaemonEvent::parseRawEvent(resp));
-	event->dump("test");
+	if(event == NULL) {
+		printf("Failed to encrypt : %d\n", __LINE__);
+		return NULL;
+	}
+
+	event->dump("encrypt return event");
 
 	if(event->code == ResponseCode::CommandOkay) {
 		int alg = std::stoi(event->message[0]);
@@ -130,21 +72,27 @@ EncKey *DekClient::encrypt(string alias, SymKey *key) {
 }
 
 SymKey *DekClient::decrypt(string alias, EncKey *key) {
-	shared_ptr<SerializedItem> sKey(key->serialize());
+	printf("DekClient::decrypt\n");
 
+	int sock = doConnect();
+	if(sock < 0) {
+		printf("Cannot connect\n");
+		return false;
+	}
+
+	shared_ptr<SerializedItem> sKey(key->serialize());
 	sKey->dump("DekClient::decrypt");
 
-	int sock = connect();
 	string cmd = "0 enc " + std::to_string(CommandCode::CommandDecrypt) + " "
 			+ alias + " " + sKey->toString();
 	printf("cmd :: %s\n", cmd.c_str());
 	write(sock, cmd.c_str(), cmd.size() + 1);
 
-	string resp = monitor(sock);
-
-	printf("resp :: %s\n", resp.c_str());
-	shared_ptr<DaemonEvent> event(DaemonEvent::parseRawEvent(resp));
-	event->dump("decrypt");
+	shared_ptr<DaemonEvent> event(monitor(sock));
+	if(event == NULL) {
+		printf("Failed to encrypt : %d\n", __LINE__);
+		return NULL;
+	}
 
 	if(event->code == ResponseCode::CommandOkay) {
 		int alg = std::stoi(event->message[0]);
@@ -163,4 +111,112 @@ SymKey *DekClient::decrypt(string alias, EncKey *key) {
 	}
 
 	return NULL;
+}
+
+
+DekControl::DekControl(string sockPath)
+: DaemonConnector(sockPath, SOCK_STREAM) {
+}
+
+bool DekControl::create(string alias, Password *key) {
+	printf("DekControl::create\n");
+
+	int sock = doConnect();
+	if(sock < 0) {
+		printf("Cannot connect\n");
+		return false;
+	}
+
+	shared_ptr<SerializedItem> sKey(key->serialize());
+	sKey->dump("DekControl::create");
+
+	string cmd = "0 ctl " + std::to_string(CommandCode::CommandCreateProfile) + " "
+			+ alias + " " + sKey->toString();
+	printf("cmd :: %s\n", cmd.c_str());
+	write(sock, cmd.c_str(), cmd.size() + 1);
+
+	shared_ptr<DaemonEvent> event(monitor(sock));
+
+	if(event->code == ResponseCode::CommandOkay) {
+		return true;
+	}
+
+	printf("Failed to create [%d]\n", event->code);
+	return false;
+}
+
+bool DekControl::remove(string alias) {
+	printf("DekControl::remove\n");
+
+	int sock = doConnect();
+	if(sock < 0) {
+		printf("Cannot connect\n");
+		return false;
+	}
+
+	string cmd = "0 ctl " + std::to_string(CommandCode::CommandDeleteProfile) + " "
+			+ alias;
+	printf("cmd :: %s\n", cmd.c_str());
+	write(sock, cmd.c_str(), cmd.size() + 1);
+
+	shared_ptr<DaemonEvent> event(monitor(sock));
+
+	if(event->code == ResponseCode::CommandOkay) {
+		return true;
+	}
+
+	printf("Failed to create [%d]\n", event->code);
+	return false;
+}
+
+bool DekControl::unlock(string alias, Password *key) {
+	printf("DekControl::unlock\n");
+
+	shared_ptr<SerializedItem> sKey(key->serialize());
+
+	sKey->dump("DekControl::unlock");
+
+	int sock = doConnect();
+	if(sock < 0) {
+		printf("Cannot connect\n");
+		return false;
+	}
+
+	string cmd = "0 ctl " + std::to_string(CommandCode::CommandUnlock) + " "
+			+ alias + " " + sKey->toString();
+	printf("cmd :: %s\n", cmd.c_str());
+	write(sock, cmd.c_str(), cmd.size() + 1);
+
+	shared_ptr<DaemonEvent> event(monitor(sock));
+
+	if(event->code == ResponseCode::CommandOkay) {
+		return true;
+	}
+
+	printf("Failed to unlock [%d]\n", event->code);
+	return false;
+}
+
+bool DekControl::lock(string alias) {
+	printf("DekControl::lock\n");
+
+	int sock = doConnect();
+	if(sock < 0) {
+		printf("Cannot connect\n");
+		return false;
+	}
+
+	string cmd = "0 ctl " + std::to_string(CommandCode::CommandLock) + " "
+			+ alias;
+	printf("cmd :: %s\n", cmd.c_str());
+	write(sock, cmd.c_str(), cmd.size() + 1);
+
+	shared_ptr<DaemonEvent> event(monitor(sock));
+
+	if(event->code == ResponseCode::CommandOkay) {
+		return true;
+	}
+
+	printf("Failed to create [%d]\n", event->code);
+	return false;
 }

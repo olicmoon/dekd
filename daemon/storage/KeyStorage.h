@@ -16,7 +16,7 @@
 
 class KeyStorage {
 public:
-	KeyStorage(const char *path);
+	KeyStorage(string path);
 	virtual ~KeyStorage();
 
 protected:
@@ -28,6 +28,7 @@ protected:
 
 #define KEK_COL_ALIAS "ALIAS"
 #define KEK_COL_KEK_NAME "KEK_NAME"
+#define KEK_COL_KEK_TYPE "KEK_TYPE"
 #define KEK_COL_ENCRYPTED_BY "ENCRYPTED_BY"
 #define KEK_COL_EKEK "KEY"
 #define KEK_COL_AUTH_TAG "KEK_AUTH_TAG"
@@ -35,29 +36,32 @@ protected:
 class KekStorage : public KeyStorage {
 public:
 	static KekStorage *getInstance() {
+		if(_instance == NULL)
+			_instance = new KekStorage("./knox.db");
 		return _instance;
 	}
 
 	bool create();
-	bool exist(const char *alias, string kekName);
-	bool store(const char *alias, Key *kek, Token *tok);
+	bool exist(string alias, string kekName);
+	bool store(string alias, Key *kek, Token *tok);
 
-	SymKey *retrieveSymKey(const char *alias, Token *tok) {
+	SymKey *retrieveSymKey(string alias, Token *tok) {
 		return (SymKey *)retrieve(alias, CryptAlg::AES, KeyType::SYM, tok);
 	}
-	PubKey *retrievePubKey(const char *alias, int alg) {
+	PubKey *retrievePubKey(string alias, int alg) {
 		return (PubKey *)retrieve(alias, alg, KeyType::PUB, NULL);
 	}
-	PrivKey *retrievePrivKey(const char *alias, int alg, Token *tok) {
+	PrivKey *retrievePrivKey(string alias, int alg, Token *tok) {
 		return (PrivKey *)retrieve(alias, alg, KeyType::PRI, tok);
 	}
 
-	bool remove(const char *alias);
+	bool remove(string alias);
 
+	list<shared_ptr<SqlValue>> getAllKek();
 private:
-	Key *retrieve(const char *alias, int alg, int type, Token *tok);
+	Key *retrieve(string alias, int alg, int type, Token *tok);
 
-	KekStorage(const char *path)
+	KekStorage(string path)
 	: KeyStorage(path) {
 	}
 
@@ -76,19 +80,21 @@ private:
 class MkStorage : public KeyStorage {
 public:
 	static MkStorage *getInstance() {
+		if(_instance == NULL)
+			_instance =  new MkStorage("./knox.db");
 		return _instance;
 	}
 
 	virtual ~MkStorage() { }
 
 	bool create();
-	bool exist(const char *alias);
-	bool store(const char *alias, SymKey *mk, Token *tok);
-	SymKey *retrieve(const char *alias, Token *tok);
-	bool remove(const char *alias);
+	bool exist(string alias);
+	bool store(string alias, SymKey *mk, Token *tok);
+	SymKey *retrieve(string alias, Token *tok);
+	bool remove(string alias);
 
 private:
-	MkStorage(const char *path)
+	MkStorage(string path)
 	: KeyStorage(path) {
 
 	}

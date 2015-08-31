@@ -267,4 +267,10 @@ private:
 
 typedef EncItem EncKey;
 
+class Util {
+public:
+	static void zeroOut(string str) {
+		std::fill(str.begin(), str.end(), 0);
+	}
+};
 #endif /* ITEM_H_ */

@@ -5,18 +5,11 @@
  *      Author: olic
  */
 
-/**
- * [socket] [cmd] [sub-cmd] [args...]
- * response code :
- * 200 : success
- * 400 : error
- */
-
-#include "DekdCmdListener.h"
-
 #include <stdio.h>
 #include <string.h>
 #include <ResponseCode.h>
+
+#include "DekdCmdListener.h"
 
 void dump_args(int argc, char **argv) {
 	char buffer[4096];
@@ -105,6 +98,12 @@ int DekdReqCmdListener::EncCmd::runCommand(SocketClient *c,
 			RESPONSE(c, ResponseCode::CommandSyntaxError, "failed");
 			return -1;
 		}
+
+		if(!kc->isUnlocked()) {
+			RESPONSE(c, ResponseCode::CommandStateLocked, "locked");
+			return -1;
+		}
+
 		int alg =  atoi(argv[3]);
 		char *item = argv[4];
 		char *tag = NULL;
@@ -214,7 +213,12 @@ int DekdCtlCmdListener::CtlCmd::runCommand(SocketClient *c,
 		PubKey *pubKey =
 				kekStorage->retrievePubKey(alias, CryptAlg::ECDH);
 
+		if(!kc->transit(KeyCrypto::Event::Boot)) {
+			RESPONSE(c, ResponseCode::CommandStateNotTransitted, "Failed to transit");
+			break;
+		}
 		kc->setPubKey(pubKey);
+
 		kc->dump();
 		RESPONSE(c, ResponseCode::CommandOkay, "booted");
 		break;
@@ -226,11 +230,14 @@ int DekdCtlCmdListener::CtlCmd::runCommand(SocketClient *c,
 			return -1;
 		}
 
-		if(argc < 4) {
+		if(argc < 5) {
 			printf("Usage : [ctl] [create] [alias] [pwd]\n");
 			RESPONSE(c, ResponseCode::CommandSyntaxError, "lack of argc");
 			return -1;
 		}
+
+		int alg =  atoi(argv[3]);
+		char *item = argv[4];
 
 		keyCryptoManager->createKeyCrypto(alias);
 		KeyCrypto *kc = keyCryptoManager->getKeyCrypto(alias);
@@ -239,11 +246,9 @@ int DekdCtlCmdListener::CtlCmd::runCommand(SocketClient *c,
 			return -1;
 		}
 
-		char *pwd = argv[3];
-
 		char *tmp;
 		size_t len;
-		bool rc = Base64Decode(pwd, (unsigned char **)&tmp, &len);
+		bool rc = Base64Decode(item, (unsigned char **)&tmp, &len);
 		if(!rc || len <= 0) {
 			printf("base64 decode failed");
 			RESPONSE(c, ResponseCode::CommandParameterError, "failed");
@@ -288,7 +293,18 @@ int DekdCtlCmdListener::CtlCmd::runCommand(SocketClient *c,
 		}
 		devPub->dump("stored devPri");
 
+		if(!kc->transit(KeyCrypto::Event::Create)) {
+			RESPONSE(c, ResponseCode::CommandStateNotTransitted, "Failed to transit");
+			keyCryptoManager->clrKeyCrypto(alias);
+			kekStorage->remove(alias);
+			mkStorage->remove(alias);
+
+			delete devPri;
+			delete symKey;
+			break;
+		}
 		kc->setPubKey(devPub);
+
 		kc->dump();
 		delete devPri;
 		delete symKey;
@@ -298,6 +314,16 @@ int DekdCtlCmdListener::CtlCmd::runCommand(SocketClient *c,
 	}
 	case CommandCode::CommandDeleteProfile:
 	{
+		KeyCrypto *kc = keyCryptoManager->getKeyCrypto(alias);
+		if(kc == NULL) {
+			RESPONSE(c, ResponseCode::CommandNotFound, "not found");
+			return -1;
+		}
+		if(!kc->transit(KeyCrypto::Event::Remove)) {
+			RESPONSE(c, ResponseCode::CommandStateNotTransitted, "Failed to transit");
+			break;
+		}
+
 		keyCryptoManager->clrKeyCrypto(alias);
 		kekStorage->remove(alias);
 		mkStorage->remove(alias);
@@ -310,6 +336,10 @@ int DekdCtlCmdListener::CtlCmd::runCommand(SocketClient *c,
 		if(kc == NULL) {
 			RESPONSE(c, ResponseCode::CommandNotFound, "not found");
 			return -1;
+		}
+		if(!kc->transit(KeyCrypto::Event::Lock)) {
+			RESPONSE(c, ResponseCode::CommandStateNotTransitted, "Failed to transit");
+			break;
 		}
 
 		kc->clrPrivKey();
@@ -332,11 +362,12 @@ int DekdCtlCmdListener::CtlCmd::runCommand(SocketClient *c,
 			return -1;
 		}
 
-		char *pwd = argv[3];
+		int alg =  atoi(argv[3]);
+		char *item = argv[4];
 
 		char *tmp;
 		size_t len;
-		bool rc = Base64Decode(pwd, (unsigned char **)&tmp, &len);
+		bool rc = Base64Decode(item, (unsigned char **)&tmp, &len);
 		if(!rc || len <= 0) {
 			printf("base64 decode failed");
 			RESPONSE(c, ResponseCode::CommandParameterError, "failed");
@@ -359,6 +390,11 @@ int DekdCtlCmdListener::CtlCmd::runCommand(SocketClient *c,
 				kekStorage->retrievePrivKey(alias, CryptAlg::ECDH, mk.get());
 		SymKey *symKey =
 				kekStorage->retrieveSymKey(alias, mk.get());
+
+		if(!kc->transit(KeyCrypto::Event::Unlock)) {
+			RESPONSE(c, ResponseCode::CommandStateNotTransitted, "Failed to transit");
+			break;
+		}
 
 		kc->setPrivKey(privKey);
 		kc->setSymKey(symKey);

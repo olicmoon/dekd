@@ -28,38 +28,102 @@
 #include <sys/types.h>
 #include <sys/un.h>
 
-#include "DekClient.h"
-#include "socket_local_client.h"
 #include <native_crypto.h>
+#include "DekClient.h"
+
+#include <string>
+
+using std::string;
 
 static void usage(char *progname);
+#if 0
 static int do_monitor(int sock, int stop_after_cmd);
 static int do_cmd(int sock, int argc, char **argv);
+#endif
 
 int main(int argc, char **argv) {
 	int sock;
 	int cmdOffset = 0;
 
-	if (argc < 3)
+	if (argc < 4) {
 		usage(argv[0]);
-	else if(argc == 3) {
-		DekClient *dc = new DekClient(argv[1]);
+		exit(1);
+	}
+
+	string sockPath = argv[1];
+	string cmd = argv[2];
+	string alias = argv[3];
+
+	if(!cmd.compare("create")) {
+		if(argc < 5) {
+			printf("password requried.\n");
+			exit(1);
+		}
+		string password = argv[4];
+		DekControl *dc = new DekControl(sockPath);
+		bool rc = dc->create(alias, new Password(password.c_str(), password.size()));
+
+		if(!rc) {
+			printf("failed to create\n");
+			exit(1);
+		}
+	}
+
+	if(!cmd.compare("remove")) {
+		DekControl *dc = new DekControl(sockPath);
+		bool rc = dc->remove(alias);
+
+		if(!rc) {
+			printf("failed to remove\n");
+			exit(1);
+		}
+	}
+
+	if(!cmd.compare("unlock")) {
+		if(argc < 5) {
+			printf("password requried.");
+			exit(1);
+		}
+		string password = argv[4];
+		DekControl *dc = new DekControl(sockPath);
+		bool rc = dc->unlock(alias, new Password(password.c_str(), password.size()));
+
+		if(!rc) {
+			printf("failed to unlock\n");
+			exit(1);
+		}
+	}
+
+	if(!cmd.compare("lock")) {
+		DekControl *dc = new DekControl(sockPath);
+		bool rc = dc->lock(alias);
+
+		if(!rc) {
+			printf("failed to lock\n");
+			exit(1);
+		}
+	}
+
+	if(!cmd.compare("test_enc_dec_key")) {
+		DekClient *dc = new DekClient(sockPath);
 
 		SymKey *key = generateSymKey();
 		key->dump("generated key");
 
-		EncKey *ekey = dc->encrypt(argv[2], key);
+		EncKey *ekey = dc->encrypt(alias, key);
 
 		ekey->dump("ekey");
-		SymKey *dkey = dc->decrypt(argv[2], ekey);
+		SymKey *dkey = dc->decrypt(alias, ekey);
 		dkey->dump("decrypted key");
 
 		delete key;
 		delete ekey;
 		delete dc;
-		exit(1);
 	}
 
+	exit(0);
+
+#if 0
 	// try interpreting the first arg as the socket name - if it fails go back to netd
 
 	if ((sock = socket_local_client(argv[1],
@@ -76,7 +140,10 @@ int main(int argc, char **argv) {
 		exit(do_monitor(sock, 0));
 	exit(do_cmd(sock, argc-cmdOffset, &(argv[cmdOffset])));
 }
+#endif
+}
 
+#if 0
 static int do_cmd(int sock, int argc, char **argv) {
 	char *final_cmd;
 	char *conv_ptr;
@@ -193,8 +260,9 @@ static int do_monitor(int sock, int stop_after_cmd) {
 	free(buffer);
 	return 0;
 }
+#endif
 
 static void usage(char *progname) {
-	fprintf(stderr, "Usage: %s [<sockdir>] [<sockname>] ([monitor] | ([<cmd_seq_num>] <cmd> [arg ...]))\n", progname);
+	fprintf(stderr, "Usage: %s [<sockpath>] [<cmd>]\n", progname);
 	exit(1);
 }

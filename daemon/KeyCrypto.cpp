@@ -6,6 +6,7 @@
  */
 
 #include "KeyCrypto.h"
+#include "storage/KeyStorage.h"
 
 KeyCryptoManager *KeyCryptoManager::_instance = new KeyCryptoManager();
 
@@ -13,6 +14,17 @@ KeyCrypto::KeyCrypto(string alias) {
 	printf("Creating KeyCrypto %s\n", alias.c_str());
 
 	this->_alias = alias;
+
+	_state = State::Uninitialized;
+	_oldState = State::Uninitialized;
+	StateDiagram[Action::getCode(Uninitialized, Boot)] = Locked;
+	StateDiagram[Action::getCode(Uninitialized, Create)] = Locked;
+
+	StateDiagram[Action::getCode(Locked, Unlock)] = Unlocked;
+	StateDiagram[Action::getCode(Locked, Remove)] = Uninitialized;
+
+	StateDiagram[Action::getCode(Unlocked, Lock)] = Locked;
+	StateDiagram[Action::getCode(Unlocked, Remove)] = Uninitialized;
 
 	_pubKey = NULL;
 	_privKey = NULL;
@@ -25,6 +37,26 @@ KeyCrypto::~KeyCrypto() {
 	if(_privKey != NULL) delete _privKey;
 	if(_symKey != NULL) delete _symKey;
 }
+
+bool KeyCrypto::transit(Event event) {
+	int action = Action::getCode(_state, event);
+	printf("%s : current state[0x%0.8x], event[0x%0.8x] (action[0x%0.8x])\n",
+			__func__, _state, event, action);
+
+	if (StateDiagram.find(action) == StateDiagram.end()) {
+		printf("%s : Failed to transit from state[0x%0.8x] by event[0x%0.8x]\n",
+				__func__, _state, event);
+		return false;
+	}
+
+	_oldState = _state;
+	_state = StateDiagram[action];
+	printf("%s : transited oldState[0x%0.8x]->state[0x%0.8x], event[0x%0.8x]\n",
+			__func__, _oldState, _state, event);
+
+	return true;
+}
+
 
 EncItem *KeyCrypto::encrypt(Item *item) {
 	if(_symKey)
@@ -54,5 +86,11 @@ Item *KeyCrypto::decrypt(EncItem *eitem) {
 	}
 
 	return NULL;
-
 }
+
+KeyCryptoManager::KeyCryptoManager() {
+	KekStorage *kekStorage = KekStorage::getInstance();
+
+	list<shared_ptr<SqlValue>> keks = kekStorage->getAllKek();
+}
+
