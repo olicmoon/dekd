@@ -78,7 +78,26 @@ private:
 	int type;
 };
 
-typedef list<shared_ptr<SqlValue>> SqlRecord;
+//typedef list<shared_ptr<SqlValue>> SqlRecord;
+class SqlRecord {
+public:
+	SqlRecord() { };
+	void push(shared_ptr<SqlValue> value) {
+		_values.push_back(value);
+	}
+
+	list<shared_ptr<SqlValue>> getValues() {
+		return _values;
+	}
+
+	void clear() {
+		_values.clear();
+	}
+
+private:
+	list<shared_ptr<SqlValue>> _values;
+
+};
 
 class SqlString : public SqlValue {
 public:
@@ -122,8 +141,8 @@ public:
 	bool createTbl(sqlite3 *db,
 			string tbl, list<shared_ptr<SqlValue>> values);
 	bool insertRec(sqlite3 *db,
-			string tbl, list<shared_ptr<SqlValue>> values);
-	SqlRecord selectRec(sqlite3 *db,
+			string tbl, shared_ptr<SqlRecord> record);
+	list<shared_ptr<SqlRecord>> selectRec(sqlite3 *db,
 			string tbl, list<shared_ptr<SqlValue>> where);
 	bool deleteRec(sqlite3 *db,
 			string tbl, list<shared_ptr<SqlValue>> where);

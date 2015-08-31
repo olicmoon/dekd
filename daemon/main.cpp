@@ -82,33 +82,37 @@ void test_sql_helper() {
 
 	helper->createTbl(db, string("tbl"), scheme);
 
-	list<shared_ptr<SqlValue>> rec;
-	rec.push_back(shared_ptr<SqlValue>(new SqlString("name", "olic")));
-	rec.push_back(shared_ptr<SqlValue>(new SqlInteger("age", 33)));
-	rec.push_back(shared_ptr<SqlValue>(new SqlBlob("pic", "N/A", 3)));
+	shared_ptr<SqlRecord> rec(new SqlRecord());
+	rec->push(shared_ptr<SqlValue>(new SqlString("name", "olic")));
+	rec->push(shared_ptr<SqlValue>(new SqlInteger("age", 33)));
+	rec->push(shared_ptr<SqlValue>(new SqlBlob("pic", "N/A", 3)));
 	helper->insertRec(db, string("tbl"), rec);
 
-	rec.clear();
-	rec.push_back(shared_ptr<SqlValue>(new SqlString("name", "jiji")));
-	rec.push_back(shared_ptr<SqlValue>(new SqlInteger("age", 32)));
+	rec->clear();
+	rec->push(shared_ptr<SqlValue>(new SqlString("name", "jiji")));
+	rec->push(shared_ptr<SqlValue>(new SqlInteger("age", 32)));
 	//rec.push_front(shared_ptr<SqlValue>(new SqlBlob("pic", "N/A", 3)));
 	helper->insertRec(db, string("tbl"), rec);
 
 	list<shared_ptr<SqlValue>> where;
 	where.push_back(shared_ptr<SqlValue>(new SqlString("name", "jiji")));
-	list<shared_ptr<SqlValue>> resultRec = helper->selectRec(db, string("tbl"), where);
+	list<shared_ptr<SqlRecord>> records = helper->selectRec(db, string("tbl"), where);
 
 	string result = "RESULT : ";
-	for (list<shared_ptr<SqlValue>>::iterator it = resultRec.begin();
-			it != resultRec.end(); it++) {
-		int type = (*it)->getType();
-		if(type == SQL_TEXT) {
-			shared_ptr<SqlString> value = dynamic_pointer_cast<SqlString>(*it);
-			result += value->getData() + " ";
-		} else if(type == SQL_INT) {
-			shared_ptr<SqlInteger> value = dynamic_pointer_cast<SqlInteger>(*it);
+	for (list<shared_ptr<SqlRecord>>::iterator it = records.begin();
+			it != records.end(); it++) {
+		list<shared_ptr<SqlValue>> values = (*it)->getValues();
+		for (list<shared_ptr<SqlValue>>::iterator it = values.begin();
+				it != values.end(); it++) {
+			int type = (*it)->getType();
+			if(type == SQL_TEXT) {
+				shared_ptr<SqlString> value = dynamic_pointer_cast<SqlString>(*it);
+				result += value->getData() + " ";
+			} else if(type == SQL_INT) {
+				shared_ptr<SqlInteger> value = dynamic_pointer_cast<SqlInteger>(*it);
 
-			result += std::to_string(value->getData()) + " ";
+				result += std::to_string(value->getData()) + " ";
+			}
 		}
 	}
 
@@ -201,6 +205,13 @@ int main(int argc, char **argv) {
 	DekdReqCmdListener *reqCl = new DekdReqCmdListener();
 	DekdCtlCmdListener *ctlCl = new DekdCtlCmdListener();
 	char *sock_path;
+
+	printf("\n\n");
+	printf("================================\n");
+	printf("=                              =\n");
+	printf("=      DEKD DEAMON STARTED     =\n");
+	printf("=                              =\n");
+	printf("================================\n");
 
 	if(argc == 1) {
 		//test1();

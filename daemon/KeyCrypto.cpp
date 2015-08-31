@@ -91,6 +91,48 @@ Item *KeyCrypto::decrypt(EncItem *eitem) {
 KeyCryptoManager::KeyCryptoManager() {
 	KekStorage *kekStorage = KekStorage::getInstance();
 
-	list<shared_ptr<SqlValue>> keks = kekStorage->getAllKek();
+	list<shared_ptr<SqlRecord>> foundRecords = kekStorage->getAllKek();
+	for (list<shared_ptr<SqlRecord>>::iterator it = foundRecords.begin();
+			it != foundRecords.end(); it++) {
+		string alias;
+		list<shared_ptr<SqlValue>> values = (*it)->getValues();
+		for (list<shared_ptr<SqlValue>>::iterator it = values.begin();
+				it != values.end(); it++) {
+			if((*it)->getKey().compare(KEK_COL_ALIAS) == 0)
+				alias = (dynamic_pointer_cast<SqlString> (*it))->getData();
+		}
+
+		if(this->exists(alias))
+			continue;
+		else
+			createKeyCrypto(alias);
+
+		printf("%s found [%s]\n", __func__, alias.c_str());
+
+		KeyCrypto *kc = getKeyCrypto(alias);
+		if(kc == NULL) {
+			printf("FATAL can't get KeyCrypto[%s] instance\n",
+					alias.c_str());
+			exit(1);
+		}
+
+		PubKey *pubKey =
+				kekStorage->retrievePubKey(alias, CryptAlg::ECDH);
+		if(pubKey == NULL) {
+			printf("pubkey not found from KeyCrypto[%s]\n",
+					alias.c_str());
+
+			clrKeyCrypto(alias);
+			continue;
+		}
+
+		if(!kc->transit(KeyCrypto::Event::Boot)) {
+			printf("FATAL can't transit KeyCrypto[%s] to Boot state\n",
+					alias.c_str());
+			exit(1);
+		}
+
+		kc->setPubKey(pubKey);
+	}
 }
 

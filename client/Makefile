@@ -7,7 +7,7 @@ LIBS =
 CFLAGS = -O2 -Wall -fPIC -std=c++0x -g -I../include/
 LDFLAGS = -fPIC -L$(TARGET_DIR) -lknox_crypto -lknox_utils -lpthread -lcrypto 
 
-OBJS := ndc.o DekClient.o
+OBJS := ndc.o
 
 %.o: %.cpp
 	$(CC) $(CFLAGS) -c $< -o $@

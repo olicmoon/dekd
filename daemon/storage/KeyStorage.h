@@ -57,7 +57,7 @@ public:
 
 	bool remove(string alias);
 
-	list<shared_ptr<SqlValue>> getAllKek();
+	list<shared_ptr<SqlRecord>> getAllKek();
 private:
 	Key *retrieve(string alias, int alg, int type, Token *tok);
 

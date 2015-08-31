@@ -14,3 +14,4 @@ $(CLEANDIRS):
 
 install:
 	sudo cp obj/libknox_utils.so obj/libknox_crypto.so /usr/lib
+	sudo cp include/* /usr/include/

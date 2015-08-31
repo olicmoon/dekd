@@ -34,6 +34,7 @@ EncKey *DekClient::encrypt(string alias, SymKey *key) {
 	write(sock, cmd.c_str(), cmd.size() + 1);
 
 	shared_ptr<DaemonEvent> event(monitor(sock));
+	close(sock);
 
 	if(event == NULL) {
 		printf("Failed to encrypt : %d\n", __LINE__);
@@ -89,6 +90,8 @@ SymKey *DekClient::decrypt(string alias, EncKey *key) {
 	write(sock, cmd.c_str(), cmd.size() + 1);
 
 	shared_ptr<DaemonEvent> event(monitor(sock));
+	close(sock);
+
 	if(event == NULL) {
 		printf("Failed to encrypt : %d\n", __LINE__);
 		return NULL;
@@ -136,6 +139,7 @@ bool DekControl::create(string alias, Password *key) {
 	write(sock, cmd.c_str(), cmd.size() + 1);
 
 	shared_ptr<DaemonEvent> event(monitor(sock));
+	close(sock);
 
 	if(event->code == ResponseCode::CommandOkay) {
 		return true;
@@ -160,6 +164,7 @@ bool DekControl::remove(string alias) {
 	write(sock, cmd.c_str(), cmd.size() + 1);
 
 	shared_ptr<DaemonEvent> event(monitor(sock));
+	close(sock);
 
 	if(event->code == ResponseCode::CommandOkay) {
 		return true;
@@ -188,6 +193,7 @@ bool DekControl::unlock(string alias, Password *key) {
 	write(sock, cmd.c_str(), cmd.size() + 1);
 
 	shared_ptr<DaemonEvent> event(monitor(sock));
+	close(sock);
 
 	if(event->code == ResponseCode::CommandOkay) {
 		return true;
@@ -212,6 +218,7 @@ bool DekControl::lock(string alias) {
 	write(sock, cmd.c_str(), cmd.size() + 1);
 
 	shared_ptr<DaemonEvent> event(monitor(sock));
+	close(sock);
 
 	if(event->code == ResponseCode::CommandOkay) {
 		return true;

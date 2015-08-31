@@ -17,7 +17,8 @@ NetlinkListener.o \
 SocketListener.o \
 FrameworkListener.o \
 DaemonConnector.o \
-DaemonEvent.o
+DaemonEvent.o \
+DekClient.o
 
 %.o: %.cpp
 	$(CC) $(CFLAGS) -c $< -o $@

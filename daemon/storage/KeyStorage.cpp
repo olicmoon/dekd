@@ -12,6 +12,7 @@
 #include <List.h>
 
 KeyStorage::KeyStorage(string path) {
+	printf("%s created :: opening DB %s\n", __func__, path.c_str());
 	int rc = sqlite3_open(path.c_str(), &this->mDb);
 	if( rc ){
 		printf("Can't open database: %s\n", sqlite3_errmsg(this->mDb));
@@ -47,7 +48,7 @@ bool KekStorage::exist(string alias, string kekName) {
 	where.push_back(shared_ptr<SqlValue>(new SqlString(KEK_COL_ALIAS, alias)));
 	where.push_back(shared_ptr<SqlValue>(new SqlString(KEK_COL_KEK_NAME, kekName)));
 
-	SqlRecord result =
+	list<shared_ptr<SqlRecord>> result =
 			mSqlHelper->selectRec(mDb, string(KEK_TBL_NAME), where);
 
 	int size = result.size();
@@ -67,22 +68,22 @@ bool KekStorage::store(string alias, Key *key, Token *tok){
 				return false;
 	}
 
-	SqlRecord rec;
+	shared_ptr<SqlRecord> rec(new SqlRecord());
 	shared_ptr<SerializedItem> sItem;
 
 	if(key->type == KeyType::PUB) {
 		// don't encrypt the key
 		sItem = key->serialize();
 
-		rec.push_back(shared_ptr<SqlString>(
+		rec->push(shared_ptr<SqlString>(
 				new SqlString(KEK_COL_ALIAS, alias)));
-		rec.push_back(shared_ptr<SqlString>(
+		rec->push(shared_ptr<SqlString>(
 				new SqlString(KEK_COL_KEK_NAME, KeyName::getName(key))));
-		rec.push_back(shared_ptr<SqlInteger>(
+		rec->push(shared_ptr<SqlInteger>(
 				new SqlInteger(KEK_COL_KEK_TYPE, KeyType::PUB)));
-		rec.push_back(shared_ptr<SqlInteger>(
+		rec->push(shared_ptr<SqlInteger>(
 				new SqlInteger(KEK_COL_ENCRYPTED_BY, CryptAlg::PLAIN)));
-		rec.push_back(shared_ptr<SqlString>(
+		rec->push(shared_ptr<SqlString>(
 				new SqlString(KEK_COL_EKEK, (string )sItem->getItem())));
 	} else {
 		if(tok->len > 32) {
@@ -102,17 +103,17 @@ bool KekStorage::store(string alias, Key *key, Token *tok){
 
 		sItem = eKey->serialize();
 
-		rec.push_back(shared_ptr<SqlString>(
+		rec->push(shared_ptr<SqlString>(
 				new SqlString(KEK_COL_ALIAS, alias)));
-		rec.push_back(shared_ptr<SqlString>(
+		rec->push(shared_ptr<SqlString>(
 				new SqlString(KEK_COL_KEK_NAME, KeyName::getName(key))));
-		rec.push_back(shared_ptr<SqlInteger>(
+		rec->push(shared_ptr<SqlInteger>(
 				new SqlInteger(KEK_COL_KEK_TYPE, key->type)));
-		rec.push_back(shared_ptr<SqlInteger>(
+		rec->push(shared_ptr<SqlInteger>(
 				new SqlInteger(KEK_COL_ENCRYPTED_BY, CryptAlg::AES)));
-		rec.push_back(shared_ptr<SqlString>(
+		rec->push(shared_ptr<SqlString>(
 				new SqlString(KEK_COL_EKEK, (string )sItem->getItem())));
-		rec.push_back(shared_ptr<SqlString>(
+		rec->push(shared_ptr<SqlString>(
 				new SqlString(KEK_COL_AUTH_TAG, (string )sItem->getAuthTag())));
 
 		delete eKey;
@@ -133,10 +134,9 @@ bool KekStorage::remove(string alias) {
 	return mSqlHelper->deleteRec(mDb, KEK_TBL_NAME, where);
 }
 
-list<shared_ptr<SqlValue>> KekStorage::getAllKek() {
+list<shared_ptr<SqlRecord>> KekStorage::getAllKek() {
 	list<shared_ptr<SqlValue>> where;
-	printf("mSqlHelper [%p]\n", mSqlHelper.get());
-	SqlRecord foundRec =
+	list<shared_ptr<SqlRecord>> foundRec =
 			mSqlHelper->selectRec(mDb, KEK_TBL_NAME, where);
 
 	return foundRec;
@@ -158,20 +158,25 @@ Key *KekStorage::retrieve(string alias, int alg, int type, Token *tok) {
 	where.push_back(shared_ptr<SqlString> (
 			new SqlString(KEK_COL_KEK_NAME, kek_name)));
 
-	SqlRecord foundRec = mSqlHelper->selectRec(mDb, KEK_TBL_NAME, where);
+	list<shared_ptr<SqlRecord>> foundRecords =
+			mSqlHelper->selectRec(mDb, KEK_TBL_NAME, where);
 
 	string foundItem = "?";
 	string foundAuthTag = "?";
 	int encryptedBy = CryptAlg::PLAIN;
-	for (SqlRecord::iterator it = foundRec.begin();
-			it != foundRec.end(); it++) {
-		string key = (*it)->getKey();
-		if(key.compare(KEK_COL_EKEK) == 0) {
-			foundItem = (dynamic_pointer_cast<SqlString> (*it))->getData();
-		} else if(key.compare(KEK_COL_AUTH_TAG) == 0) {
-			foundAuthTag = (dynamic_pointer_cast<SqlString> (*it))->getData();
-		} else if(key.compare(KEK_COL_ENCRYPTED_BY) == 0) {
-			encryptedBy = (dynamic_pointer_cast<SqlInteger> (*it))->getData();
+	for (list<shared_ptr<SqlRecord>>::iterator it = foundRecords.begin();
+			it != foundRecords.end(); it++) {
+		list<shared_ptr<SqlValue>> values = (*it)->getValues();
+		for (list<shared_ptr<SqlValue>>::iterator it = values.begin();
+				it != values.end(); it++) {
+			string key = (*it)->getKey();
+			if(key.compare(KEK_COL_EKEK) == 0) {
+				foundItem = (dynamic_pointer_cast<SqlString> (*it))->getData();
+			} else if(key.compare(KEK_COL_AUTH_TAG) == 0) {
+				foundAuthTag = (dynamic_pointer_cast<SqlString> (*it))->getData();
+			} else if(key.compare(KEK_COL_ENCRYPTED_BY) == 0) {
+				encryptedBy = (dynamic_pointer_cast<SqlInteger> (*it))->getData();
+			}
 		}
 	}
 
@@ -220,7 +225,7 @@ bool MkStorage::exist(string alias) {
 	list<shared_ptr<SqlValue>> where;
 	where.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_ALIAS, alias)));
 
-	list<shared_ptr<SqlValue>> result =
+	list<shared_ptr<SqlRecord>> result =
 			mSqlHelper->selectRec(mDb, string(EMK_TBL_NAME), where);
 
 	int size = result.size();
@@ -253,13 +258,13 @@ bool MkStorage::store(string alias, SymKey *mk, Token *tok) {
 	delete mkek;
 	delete emk;
 
-	list<shared_ptr<SqlValue>> rec;
-	rec.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_ALIAS, alias)));
-	rec.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_EMK, sEmk->getItem())));
-	rec.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_EMK_AUTH_TAG, sEmk->getAuthTag())));
-	rec.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_EMKEK, sPayload->getItem())));
-	rec.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_EMKEK_AUTH_TAG, sPayload->getAuthTag())));
-	rec.push_back(shared_ptr<SqlValue>(new SqlString(EMK_COL_SALT, sPayload->getSalt())));
+	shared_ptr<SqlRecord> rec(new SqlRecord());
+	rec->push(shared_ptr<SqlValue>(new SqlString(EMK_COL_ALIAS, alias)));
+	rec->push(shared_ptr<SqlValue>(new SqlString(EMK_COL_EMK, sEmk->getItem())));
+	rec->push(shared_ptr<SqlValue>(new SqlString(EMK_COL_EMK_AUTH_TAG, sEmk->getAuthTag())));
+	rec->push(shared_ptr<SqlValue>(new SqlString(EMK_COL_EMKEK, sPayload->getItem())));
+	rec->push(shared_ptr<SqlValue>(new SqlString(EMK_COL_EMKEK_AUTH_TAG, sPayload->getAuthTag())));
+	rec->push(shared_ptr<SqlValue>(new SqlString(EMK_COL_SALT, sPayload->getSalt())));
 
 	return mSqlHelper->insertRec(mDb, EMK_TBL_NAME, rec);
 }
@@ -276,26 +281,31 @@ SymKey *MkStorage::retrieve(string alias, Token *tok) {
 	where.push_back(shared_ptr<SqlString> (
 			new SqlString(EMK_COL_ALIAS, alias)));
 
-	list<shared_ptr<SqlValue>> foundRec = mSqlHelper->selectRec(mDb, EMK_TBL_NAME, where);
+	list<shared_ptr<SqlRecord>> foundRecords = mSqlHelper->selectRec(mDb, EMK_TBL_NAME, where);
 
 	string foundEmk = "?";
 	string foundEmkAuthTag = "?";
 	string foundEmkek = "?";
 	string foundEmkekAuthTag = "?";
 	string foundSalt = "?";
-	for (list<shared_ptr<SqlValue>>::iterator it = foundRec.begin();
-			it != foundRec.end(); it++) {
-		string key = (*it)->getKey();
-		if(key.compare(EMK_COL_EMK) == 0) {
-			foundEmk = (dynamic_pointer_cast<SqlString> (*it))->getData();
-		} else if(key.compare(EMK_COL_EMK_AUTH_TAG) == 0) {
-			foundEmkAuthTag = (dynamic_pointer_cast<SqlString> (*it))->getData();
-		} else if(key.compare(EMK_COL_EMKEK) == 0) {
-			foundEmkek = (dynamic_pointer_cast<SqlString> (*it))->getData();
-		} else if(key.compare(EMK_COL_EMKEK_AUTH_TAG) == 0) {
-			foundEmkekAuthTag = (dynamic_pointer_cast<SqlString> (*it))->getData();
-		} else if(key.compare(EMK_COL_SALT) == 0) {
-			foundSalt = (dynamic_pointer_cast<SqlString> (*it))->getData();
+	for (list<shared_ptr<SqlRecord>>::iterator it = foundRecords.begin();
+			it != foundRecords.end(); it++) {
+		list<shared_ptr<SqlValue>> values = (*it)->getValues();
+
+		for (list<shared_ptr<SqlValue>>::iterator it = values.begin();
+				it != values.end(); it++) {
+			string key = (*it)->getKey();
+			if(key.compare(EMK_COL_EMK) == 0) {
+				foundEmk = (dynamic_pointer_cast<SqlString> (*it))->getData();
+			} else if(key.compare(EMK_COL_EMK_AUTH_TAG) == 0) {
+				foundEmkAuthTag = (dynamic_pointer_cast<SqlString> (*it))->getData();
+			} else if(key.compare(EMK_COL_EMKEK) == 0) {
+				foundEmkek = (dynamic_pointer_cast<SqlString> (*it))->getData();
+			} else if(key.compare(EMK_COL_EMKEK_AUTH_TAG) == 0) {
+				foundEmkekAuthTag = (dynamic_pointer_cast<SqlString> (*it))->getData();
+			} else if(key.compare(EMK_COL_SALT) == 0) {
+				foundSalt = (dynamic_pointer_cast<SqlString> (*it))->getData();
+			}
 		}
 	}
 
